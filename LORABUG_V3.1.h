@@ -1,14 +1,14 @@
 
 /** ============================================================================
- *  @file       CC2650_LORABUG_HW_V3.1.h
+ *  @file       LORABUG_V3.1.h
  *
  *  @brief      CC2650 Lorabug HW v3.1 Board Specific header file.
  *
  *
  *  ============================================================================
  */
-#ifndef __CC2650_LORABUG_HW_V3_1_BOARD_H__
-#define __CC2650_LORABUG_HW_V3_1_BOARD_H__
+#ifndef __LORABUG_V3_1_H__
+#define __LORABUG_V3_1_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -61,8 +61,8 @@ extern const PIN_Config BoardGpioInitTable[];
 /* LoRa Pins */
 #define Board_SX_MISO               IOID_14
 #define Board_SX_MOSI               IOID_13
-#define Board_SX_CLK                IOID_15
-#define Board_SX_CSN                IOID_12
+#define Board_SX_SCK                IOID_15
+#define Board_SX_NSS                IOID_12
 #define Board_SX_RF_CTRL1           IOID_0           /* Controls RF switches complement pair positive */
 #define Board_SX_RF_CTRL2           IOID_10          /* Controls RF switches complement pair negative */
 #define Board_SX_RESET              IOID_11
@@ -82,7 +82,7 @@ extern const PIN_Config BoardGpioInitTable[];
 /* SPI Board */
 #define Board_SPI0_MISO             Board_SX_MISO
 #define Board_SPI0_MOSI             Board_SX_MOSI
-#define Board_SPI0_CLK              Board_SX_CLK
+#define Board_SPI0_CLK              Board_SX_SCK
 #define Board_SPI0_CSN              PIN_UNASSIGNED    /* Assign Manually */
 
 #define Board_SPI1_MISO             PIN_UNASSIGNED
@@ -317,4 +317,4 @@ typedef enum CC2650_LAUNCHXL_WatchdogName {
 }
 #endif
 
-#endif /* __CC2650_LORABUG_HW_V3_1_BOARD_H__ */
+#endif /* __LORABUG_V3_1_H__ */

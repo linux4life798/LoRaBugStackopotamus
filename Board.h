@@ -43,7 +43,7 @@ extern "C" {
 #ifdef _DEV_BOARD_
 #include "CC2650_LAUNCHXL.h"
 #else
-#include "CC2650_LORABUG_HW_V3.1.h"
+#include <LORABUG_V3.1.h>
 #endif
 
 /* These #defines allow us to reuse TI-RTOS across other device families */
