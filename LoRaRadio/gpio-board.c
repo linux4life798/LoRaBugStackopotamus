@@ -53,17 +53,21 @@ void GpioMcuInit( Gpio_t *obj, PinNames pin, PinModes mode, PinConfigs config, P
     pconfig |= (config == PIN_PUSH_PULL) ? PIN_PUSHPULL : PIN_OPENDRAIN;
 
     // Set pull-ups/downs
-    switch (type) {
-    case PIN_NO_PULL:
-    	pconfig |= PIN_NOPULL;
-    case PIN_PULL_UP:
-    	pconfig |= PIN_PULLUP;
-    case PIN_PULL_DOWN:
-    	pconfig |= PIN_PULLDOWN;
+    if (mode == PIN_INPUT) {
+        switch (type) {
+        case PIN_NO_PULL:
+            pconfig |= PIN_NOPULL;
+        case PIN_PULL_UP:
+            pconfig |= PIN_PULLUP;
+        case PIN_PULL_DOWN:
+            pconfig |= PIN_PULLDOWN;
+        }
     }
 
     // Set initial value
-    pconfig |= value ? PIN_GPIO_HIGH : PIN_GPIO_LOW;
+    if (mode == PIN_OUTPUT) {
+        pconfig |= value ? PIN_GPIO_HIGH : PIN_GPIO_LOW;
+    }
 
     if (pinHandle == NULL) {
         PIN_Status status;
@@ -72,10 +76,10 @@ void GpioMcuInit( Gpio_t *obj, PinNames pin, PinModes mode, PinConfigs config, P
     	pinHandle = PIN_open(&pinState, pconfigs);
     	if(pinHandle == NULL) {
     		// Error opening pin
-    		while(1) ;
+            System_abort("Failed to open pin\n");
     	}
     	// register a default callback for all pins - this does not enable the interrupt
-    	status = PIN_registerIntCb(pinHandle, pinIntCallback);
+        status = PIN_registerIntCb(pinHandle, pinIntCallback);
         if (status != PIN_SUCCESS) {
             System_abort("Failed to register interrupt callback for pin\n");
         }
@@ -522,7 +526,8 @@ void GpioMcuHandleInterrupt(UInt32 timeout)
                         Event_Id_00 + Event_Id_01 + Event_Id_02 + Event_Id_03 + Event_Id_04 + Event_Id_05,
                         timeout);
 
-    printf("events = 0x%X\n", events);
+    if(events)
+        printf("events = 0x%X\n", events);
 
     /* Process all the events */
     if (events & Event_Id_00)
