@@ -158,11 +158,13 @@ uint8_t SX1276GetPaSelect( uint32_t channel )
 {
     if( channel < RF_MID_BAND_THRESH )
     {
-        return RF_PACONFIG_PASELECT_PABOOST;
+        // LF
+        return RF_PACONFIG_PASELECT_RFO;
     }
     else
     {
-        return RF_PACONFIG_PASELECT_RFO;
+        // HF - Connected to PA_BOOST
+        return RF_PACONFIG_PASELECT_PABOOST;
     }
 }
 
