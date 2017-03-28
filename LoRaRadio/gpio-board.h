@@ -16,6 +16,8 @@ Maintainer: Miguel Luis and Gregory Cristian
 #ifndef __GPIO_MCU_H__
 #define __GPIO_MCU_H__
 
+#include "gpio.h"
+
 /*!
  * \brief Initializes the given GPIO object
  *
@@ -71,5 +73,9 @@ void GpioMcuToggle( Gpio_t *obj );
  * \retval value  Current GPIO input value
  */
 uint32_t GpioMcuRead( Gpio_t *obj );
+
+void GpioMcuInitInterrupt();
+
+void GpioMcuHandleInterrupt(UInt32 timeout);
 
 #endif // __GPIO_MCU_H__

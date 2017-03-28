@@ -9,6 +9,7 @@
 
 /* XDCtools Header files */
 #include <xdc/runtime/System.h>
+#include <xdc/runtime/Error.h> // Error_Block
 
 /* BIOS Header files */
 #include <ti/sysbios/knl/Event.h>
@@ -19,54 +20,13 @@
 static PIN_State pinState;
 static PIN_Handle pinHandle = NULL;
 
-//static Event_Handle sxevents;
-//Error_Block eb;
-//Error_init(&eb);
-//
-///* Default instance configuration params */
-//myEvent = Event_create(NULL, &eb);
-//if (myEvent == NULL)
-//{
-//    System_abort("Event create failed");
-//}
+static Event_Handle sxevents;
+static Error_Block eb;
 
-static GpioIrqHandler *GpioIrq[8] = {0};
+static GpioIrqHandler *GpioIrq[6] = {0};
 
-static int8_t irqPinId2Index(uint8_t pinId) {
-	switch(pinId) {
-	case Board_SX_RESET:
-		return 0;
-	case Board_SX_NSS:
-		return 1;
-	case Board_SX_DIO0:
-		return 2;
-	case Board_SX_DIO1:
-		return 3;
-	case Board_SX_DIO2:
-		return 4;
-	case Board_SX_DIO3:
-		return 5;
-	case Board_SX_DIO4:
-		return 6;
-	case Board_SX_DIO5:
-		return 7;
-	default:
-	    System_abort("Asked for irqPin of something non-standard\n");
-		return -1;
-	}
-}
-
-static void pinIntCallback(PIN_Handle handle, PIN_Id pinId)
-{
-    int8_t index = irqPinId2Index(pinId);
-    if (index >= 0)
-    {
-        if (GpioIrq[index] != NULL)
-        {
-            GpioIrq[irqPinId2Index(pinId)]();
-        }
-    }
-}
+static int8_t irqPinId2Index(uint8_t pinId);
+static void pinIntCallback(PIN_Handle handle, PIN_Id pinId);
 
 void GpioMcuInit( Gpio_t *obj, PinNames pin, PinModes mode, PinConfigs config, PinTypes type, uint32_t value )
 {
@@ -239,9 +199,9 @@ void GpioMcuSetInterrupt( Gpio_t *obj, IrqModes irqMode, IrqPriorities irqPriori
 	}
 	GpioIrq[index] = irqHandler;
 
-//	if (PIN_setInterrupt(pinHandle, config) != PIN_SUCCESS) {
-//	    System_abort("Failed to set interrupt for pin\n");
-//	}
+	if (PIN_setInterrupt(pinHandle, config) != PIN_SUCCESS) {
+	    System_abort("Failed to set interrupt for pin\n");
+	}
 
 
 
@@ -343,6 +303,7 @@ void GpioMcuRemoveInterrupt( Gpio_t *obj )
     }
 	GpioIrq[index] = NULL;
 	PIN_setInterrupt(pinHandle, PIN_ID(obj->pinIndex) | PIN_IRQ_DIS);
+
 //    GPIO_InitTypeDef   GPIO_InitStructure;
 //
 //    GPIO_InitStructure.Pin =  obj->pinIndex ;
@@ -480,3 +441,136 @@ uint32_t GpioMcuRead( Gpio_t *obj )
 //        GpioIrq[callbackIndex]( );
 //    }
 //}
+
+static int8_t irqPinId2Index(uint8_t pinId)
+{
+    switch (pinId)
+    {
+    case Board_SX_DIO0:
+        return 0;
+    case Board_SX_DIO1:
+        return 1;
+    case Board_SX_DIO2:
+        return 2;
+    case Board_SX_DIO3:
+        return 3;
+    case Board_SX_DIO4:
+        return 4;
+    case Board_SX_DIO5:
+        return 5;
+    case Board_SX_RESET:
+    case Board_SX_NSS:
+    default:
+        System_abort("Asked for irqPin of a non-DIO pin\n");
+        return -1;
+    }
+}
+
+static void pinIntCallback(PIN_Handle handle, PIN_Id pinId)
+{
+    int8_t index = irqPinId2Index(pinId);
+    if (index >= 0)
+    {
+        if (GpioIrq[index] != NULL)
+        {
+            switch (pinId)
+            {
+            case Board_SX_DIO0:
+                Event_post(sxevents, Event_Id_00);
+                break;
+            case Board_SX_DIO1:
+                Event_post(sxevents, Event_Id_01);
+                break;
+            case Board_SX_DIO2:
+                Event_post(sxevents, Event_Id_02);
+                break;
+            case Board_SX_DIO3:
+                Event_post(sxevents, Event_Id_03);
+                break;
+            case Board_SX_DIO4:
+                Event_post(sxevents, Event_Id_04);
+                break;
+            case Board_SX_DIO5:
+                Event_post(sxevents, Event_Id_05);
+                break;
+            }
+        }
+    }
+}
+
+void GpioMcuInitInterrupt()
+{
+    /* create an Event object. All events are binary */
+    sxevents = Event_create(NULL, &eb);
+    if (sxevents == NULL)
+    {
+        System_abort("Event sxevents create failed");
+    }
+}
+
+/**
+ *
+ * @param timeout The timeout spec for Event_pend. This can be BIOS_WAIT_FOREVER.
+ */
+void GpioMcuHandleInterrupt(UInt32 timeout)
+{
+    UInt events;
+    GpioIrqHandler *handler;
+
+    events = Event_pend(sxevents,
+                        Event_Id_NONE,
+                        Event_Id_00 + Event_Id_01 + Event_Id_02 + Event_Id_03 + Event_Id_04 + Event_Id_05,
+                        timeout);
+
+    printf("events = 0x%X\n", events);
+
+    /* Process all the events */
+    if (events & Event_Id_00)
+    {
+        handler = GpioIrq[0];
+        if (handler != NULL)
+        {
+            handler();
+        }
+    }
+    if (events & Event_Id_01)
+    {
+        handler = GpioIrq[1];
+        if (handler != NULL)
+        {
+            handler();
+        }
+    }
+    if (events & Event_Id_02)
+    {
+        handler = GpioIrq[2];
+        if (handler != NULL)
+        {
+            handler();
+        }
+    }
+    if (events & Event_Id_03)
+    {
+        handler = GpioIrq[3];
+        if (handler != NULL)
+        {
+            handler();
+        }
+    }
+    if (events & Event_Id_04)
+    {
+        handler = GpioIrq[4];
+        if (handler != NULL)
+        {
+            handler();
+        }
+    }
+    if (events & Event_Id_05)
+    {
+        handler = GpioIrq[5];
+        if (handler != NULL)
+        {
+            handler();
+        }
+    }
+}

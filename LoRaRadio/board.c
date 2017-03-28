@@ -12,7 +12,20 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
 
 Maintainer: Miguel Luis and Gregory Cristian
 */
+
+#include <ti/sysbios/knl/Task.h>
+
+#include <ti/sysbios/BIOS.h> // BIOS_WAIT_FOREVER
+
+#include "gpio-board.h"
 #include "board.h"
+
+
+/* LoRa Task Declarations */
+#define LORATASKSTACKSIZE   2048
+static Task_Struct loraTaskStruct;
+static Char loraTaskStack[LORATASKSTACKSIZE];
+static void loraTaskFxn(UArg arg0, UArg arg1);
 
 //#include "adc-board.h"
 
@@ -112,12 +125,18 @@ static bool McuInitialized = false;
  */
 static uint8_t IrqNestLevel = 0;
 
+/**
+ * TODO: Make these only Enable/Disable the GPIO IRQs
+ */
 void BoardDisableIrq( void )
 {
     __disable_irq( );
     IrqNestLevel++;
 }
 
+/**
+ * TODO: Make these only Enable/Disable the GPIO IRQs
+ */
 void BoardEnableIrq( void )
 {
     IrqNestLevel--;
@@ -173,8 +192,18 @@ void BoardInitPeriph( void )
 
 void BoardInitMcu( void )
 {
+
+    GpioMcuInitInterrupt();
     SpiInit( &SX1276.Spi, Board_SX_MOSI, Board_SX_MISO, Board_SX_SCK, NC );
     SX1276IoInit( );
+
+    /* Start LoRa Task */
+    Task_Params loraTaskParams;
+    Task_Params_init(&loraTaskParams);
+    loraTaskParams.stackSize = LORATASKSTACKSIZE;
+    loraTaskParams.stack = &loraTaskStack;
+    Task_construct(&loraTaskStruct, (Task_FuncPtr) loraTaskFxn, &loraTaskParams,
+                   NULL);
 
     if( McuInitialized == false )
     {
@@ -470,6 +499,14 @@ uint8_t GetBoardPowerSource( void )
 //#else
     return USB_POWER;
 //#endif
+}
+
+static void loraTaskFxn(UArg arg0, UArg arg1)
+{
+    while (1)
+    {
+        GpioMcuHandleInterrupt(BIOS_WAIT_FOREVER);
+    }
 }
 
 #ifdef USE_FULL_ASSERT
