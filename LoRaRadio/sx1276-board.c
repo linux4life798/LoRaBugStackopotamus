@@ -185,8 +185,8 @@ void SX1276SetAntSwLowPower( bool status )
 
 void SX1276AntSwInit( void )
 {
-    GpioInit( &AntSwitchDP, Board_SX_RF_CTRL1, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 1 );
-    GpioInit( &AntSwitchDM, Board_SX_RF_CTRL2, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
+    GpioInit( &AntSwitchDP, Board_SX_RF_CTRL1, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 1 );
+    GpioInit( &AntSwitchDM, Board_SX_RF_CTRL2, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0 );
 }
 
 void SX1276AntSwDeInit( void )
@@ -201,16 +201,16 @@ void SX1276SetAntSw( uint8_t opMode )
     {
     case RFLR_OPMODE_TRANSMITTER:
         // Both LF and HF in TX mode
-        GpioWrite( &AntSwitchDP, 0 );
-        GpioWrite( &AntSwitchDM, 1 );
+        GpioWrite( &AntSwitchDP, 1 );
+        GpioWrite( &AntSwitchDM, 0 );
         break;
     case RFLR_OPMODE_RECEIVER:
     case RFLR_OPMODE_RECEIVER_SINGLE:
     case RFLR_OPMODE_CAD:
     default:
         // Both LF and HF in RX mode
-        GpioWrite( &AntSwitchDP, 1 );
-        GpioWrite( &AntSwitchDM, 0 );
+        GpioWrite( &AntSwitchDP, 0 );
+        GpioWrite( &AntSwitchDM, 1 );
         break;
     }
 }
