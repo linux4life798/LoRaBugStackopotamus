@@ -12,7 +12,13 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
 
 Maintainer: Miguel Luis and Gregory Cristian
 */
-#include "board.h"
+
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Clock.h>
+
+#include "delay.h"
+
+#define TIME_MS (1000/Clock_tickPeriod)
 
 void Delay( float s )
 {
@@ -21,5 +27,5 @@ void Delay( float s )
 
 void DelayMs( uint32_t ms )
 {
-    HAL_Delay( ms );
+    Task_sleep(TIME_MS * ms);
 }
