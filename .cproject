@@ -105,7 +105,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="txrx_lorapacket.c|LoRaRadio/rtc-board.c|shutdown_everything.c|hal.c|LoRaMac-node|LoRaMac-node/src/boards/LoRaMote|LoRaRadio/uart-usb-board.c|LoRaRadio/uart-board.c|LoRaRadio/i2c-board.c|LoRaRadio/gps-board.c|LoRaRadio/adc-board.c|LoRaMac-node/src/system/adc.c|cc26x0f128.cmd|LoRaMac-node/src/boards/LoRaBug/uart-board.c|LoRaMac-node/src/boards/LoRaBug/i2c-board.c|LoRaMac-node/src/apps|LoRaMac-node/coIDE|LoRaMac-node/Keil|LoRaMac-node/src/boards/SK-iM880A|LoRaMac-node/src/boards/SensorNode|LoRaMac-node/src/boards/mcu|CC2650_LAUNCHXL.c|src" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="txrx_test.c|shutdown_everything.c|LoRaRadio/rtc-board.c|hal.c|LoRaMac-node|LoRaMac-node/src/boards/LoRaMote|LoRaRadio/uart-usb-board.c|LoRaRadio/uart-board.c|LoRaRadio/i2c-board.c|LoRaRadio/gps-board.c|LoRaRadio/adc-board.c|LoRaMac-node/src/system/adc.c|cc26x0f128.cmd|LoRaMac-node/src/boards/LoRaBug/uart-board.c|LoRaMac-node/src/boards/LoRaBug/i2c-board.c|LoRaMac-node/src/apps|LoRaMac-node/coIDE|LoRaMac-node/Keil|LoRaMac-node/src/boards/SK-iM880A|LoRaMac-node/src/boards/SensorNode|LoRaMac-node/src/boards/mcu|CC2650_LAUNCHXL.c|src" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
