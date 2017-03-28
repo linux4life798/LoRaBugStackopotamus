@@ -501,11 +501,16 @@ uint8_t GetBoardPowerSource( void )
 //#endif
 }
 
+#define TIME_MS (1000/Clock_tickPeriod)
+
 static void loraTaskFxn(UArg arg0, UArg arg1)
 {
     while (1)
     {
-        GpioMcuHandleInterrupt(BIOS_WAIT_FOREVER);
+        // HACK
+//        GpioMcuHandleInterrupt(BIOS_WAIT_FOREVER);
+        GpioMcuHandleInterrupt(TIME_MS * 10);
+        HackTimerMakeCallback();
     }
 }
 

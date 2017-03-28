@@ -81,14 +81,19 @@ Maintainer: Miguel Luis and Gregory Cristian
  */
 //TimerTime_t TimerGetValue( void );
 
+// HACK
+void (*callme)(void) = NULL;
+
 /**
  * This is the callback proxy for all registered
  * @param arg0
  */
 Void timerCallback(UArg arg0)
 {
-//    assert(arg0);
+    assert(arg0);
+    // again we have the swi callback problem
 //    ((void (*)(void))arg0)();
+    callme = ((void (*)(void))arg0);
 }
 
 void TimerInit( TimerEvent_t *obj, void ( *callback )( void ) )
@@ -303,3 +308,14 @@ void TimerSetValue( TimerEvent_t *obj, uint32_t value )
 //        }
 //    }
 //}
+
+
+// HACK
+void HackTimerMakeCallback()
+{
+    if (callme) {
+        printf("Calling callme\n");
+        callme();
+        callme = NULL;
+    }
+}

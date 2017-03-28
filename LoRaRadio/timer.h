@@ -110,4 +110,6 @@ void TimerSetValue( TimerEvent_t *obj, uint32_t value );
  */
 //void TimerLowPowerHandler( void );
 
+void HackTimerMakeCallback();
+
 #endif  // __TIMER_H__
