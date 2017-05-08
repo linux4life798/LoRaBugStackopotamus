@@ -74,10 +74,10 @@
 
 const PIN_Config BoardGpioInitTable[] = {
 
-    Board_RLED   | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,         /* LED initially off             */
-    Board_GLED   | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,         /* LED initially off             */
-    Board_BTN    | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_BOTHEDGES | PIN_HYSTERESIS,            /* Button is active low          */
-    Board_UART_RX | PIN_INPUT_EN | PIN_NOPULL,                                              /* UART RX via debugger back channel */
+    Board_RLED    | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW  | PIN_PUSHPULL | PIN_DRVSTR_MAX,         /* LED initially off             */
+    Board_GLED    | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW  | PIN_PUSHPULL | PIN_DRVSTR_MAX,         /* LED initially off             */
+    Board_BTN     | PIN_INPUT_EN       | PIN_PULLUP    | PIN_IRQ_BOTHEDGES | PIN_HYSTERESIS,    /* Button is active low          */
+    Board_UART_RX | PIN_INPUT_EN       | PIN_NOPULL,                                              /* UART RX via debugger back channel */
     Board_UART_TX | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH | PIN_PUSHPULL,                        /* UART TX via debugger back channel */
 //    Board_SPI0_MOSI | PIN_INPUT_EN | PIN_PULLDOWN,                                            /* SPI master out - slave in */
 //    Board_SPI0_MISO | PIN_INPUT_EN | PIN_PULLDOWN,                                            /* SPI master in - slave out */
@@ -743,9 +743,9 @@ const Watchdog_Config Watchdog_config[] = {
 };
 
 /*
- *  ======== CC26XX_LAUNCHXL_initWatchdog ========
+ *  ======== CC2650_LORABUG_initWatchdog ========
  */
-void CC26XX_LAUNCHXL_initWatchdog(void)
+void CC2650_LORABUG_initWatchdog(void)
 {
     Watchdog_init();
 }
