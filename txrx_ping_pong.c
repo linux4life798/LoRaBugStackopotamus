@@ -1,38 +1,10 @@
-/*
- * Copyright (c) 2015-2016, Texas Instruments Incorporated
- * All rights reserved.
+/**
+ * This test program implements the LoRaMAC-node example
+ * PING PONG test program.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * *  Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * *  Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * *  Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * @author Craig Hesling <craig@hesling.com>
  */
 
-/*
- *  ======== empty_min.c ========
- */
 /* XDCtools Header files */
 #include <xdc/std.h>
 #include <xdc/runtime/System.h>
@@ -46,28 +18,20 @@
 // #include <ti/drivers/I2C.h>
 #include <ti/drivers/PIN.h>
 #include <ti/drivers/SPI.h>
-//#include <ti/drivers/UART.h>
+#include <ti/drivers/UART.h>
 // #include <ti/drivers/Watchdog.h>
-
-#include <ti/sysbios/knl/Mailbox.h>
-
-//#include "uart_printf.h"
-// UART LOGS???
-//#include <uart_logs.h>
 
 /* Board Header files */
 #include "Board.h"
 
-//#include "hal.h"
-
-#define TIME_MS (1000/Clock_tickPeriod)
-
-//#include <string.h>
-#include "LoRaRadio/board.h"
+#include <string.h> // strlen in uartputs
+#include "board.h" // The LoRaMac-node/src/boards/LoRaBug/board.h file
 #include "radio.h"
+#include "io.h"
 
 #define USE_BAND_915
 #define USE_MODEM_LORA
+//#define USE_MODEM_FSK
 
 #if defined( USE_BAND_433 )
 
@@ -99,13 +63,14 @@
                                                               //  1: 250 kHz,
                                                               //  2: 500 kHz,
                                                               //  3: Reserved]
-#define LORA_SPREADING_FACTOR                       7         // [SF7..SF12]
-//#define LORA_SPREADING_FACTOR                       10         // [SF7..SF12]
+//#define LORA_SPREADING_FACTOR                       7         // [SF7..SF12]
+#define LORA_SPREADING_FACTOR                       9         // [SF7..SF12]
 #define LORA_CODINGRATE                             1         // [1: 4/5,
                                                               //  2: 4/6,
                                                               //  3: 4/7,
                                                               //  4: 4/8]
 #define LORA_PREAMBLE_LENGTH                        8         // Same for Tx and Rx
+//#define LORA_PREAMBLE_LENGTH                        20         // Same for Tx and Rx
 #define LORA_SYMBOL_TIMEOUT                         5         // Symbols
 #define LORA_FIX_LENGTH_PAYLOAD_ON                  false
 #define LORA_IQ_INVERSION_ON                        false
@@ -223,83 +188,15 @@ void OnRxError( void )
 Task_Struct task0Struct;
 Char task0Stack[TASKSTACKSIZE];
 
-/* Pin driver handle */
-static PIN_Handle ledPinHandle;
-static PIN_State ledPinState;
-
-/*
- * Application LED pin configuration table:
- *   - All LEDs board LEDs are off.
- */
-PIN_Config ledPinTable[] = {
-    Board_LED0 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-    Board_LED1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-    PIN_TERMINATE
-};
-
-static void setuppins() {
-    ledPinHandle = PIN_open(&ledPinState, ledPinTable);
-    if (ledPinHandle == NULL) {
-        System_abort("Failed to open board LED pins\n");
-    }
-}
-
-static void setLed(PIN_Id pin, uint_t value)
-{
-    if (PIN_setOutputValue(ledPinHandle, pin, value) != PIN_SUCCESS)
-    {
-        System_abort("Failed to set pin value\n");
-    }
-}
-
-static void toggleLed(PIN_Id pin)
-{
-    if (PIN_setOutputValue(ledPinHandle, pin,
-                           !PIN_getOutputValue(pin)) != PIN_SUCCESS)
-    {
-        System_abort("Failed to toggle pin value\n");
-    }
-}
-
-void printstate()
-{
-    PIN_Status pstatus;
-    RadioState_t state = Radio.GetStatus();
-    switch (state)
-    {
-    case RF_IDLE:
-        pstatus = PIN_setOutputValue(ledPinHandle, Board_RLED, 0);
-        printf("RF_IDLE\n");
-        break;
-    case RF_RX_RUNNING:
-        pstatus = PIN_setOutputValue(ledPinHandle, Board_RLED, 1);
-        printf("RF_RX_RUNNING\n");
-        break;
-    case RF_TX_RUNNING:
-        pstatus = PIN_setOutputValue(ledPinHandle, Board_RLED, 1);
-        printf("RF_TX_RUNNING\n");
-        break;
-    case RF_CAD:
-        pstatus = PIN_setOutputValue(ledPinHandle, Board_RLED, 1);
-        printf("RF_CAD\n");
-        break;
-    }
-    if (pstatus != PIN_SUCCESS) {
-        System_abort("Failed to set Red LED value\n");
-    }
-}
-
-/*
- *  ======== heartBeatFxn ========
- *  Toggle the Board_LED0. The Task_sleep is determined by arg0 which
- *  is configured for the heartBeat Task instance.
- */
-void heartBeatFxn(UArg arg0, UArg arg1)
+void maintask(UArg arg0, UArg arg1)
 {
     bool isMaster = true;
     uint8_t i;
 
+    printf("# Main Task Started\n");
+
     // Target board initialization
+    printf("# Board Initialization\n");
     BoardInitMcu();
     BoardInitPeriph();
 
@@ -313,7 +210,7 @@ void heartBeatFxn(UArg arg0, UArg arg1)
     Radio.Init(&RadioEvents);
     printf("# Radio init\n");
 
-    Radio.SetChannel( RF_FREQUENCY);
+    Radio.SetChannel(RF_FREQUENCY);
     printf("# Set channel to %u\n", RF_FREQUENCY);
 
 #if defined( USE_MODEM_LORA )
@@ -369,7 +266,7 @@ void heartBeatFxn(UArg arg0, UArg arg1)
                         // Indicates on a LED that the received frame is a PONG
 //                        GpioWrite(&Led1, GpioRead(&Led1) ^ 1);
                         toggleLed(Board_RLED);
-
+//                        uartputs("Got PONG");
 
                         // Send the next PING frame
                         Buffer[0] = 'P';
@@ -476,17 +373,11 @@ void heartBeatFxn(UArg arg0, UArg arg1)
         }
 
 //        TimerLowPowerHandler();
-//        State = RX_TIMEOUT;
         Task_sleep(TIME_MS * 50);
     }
 
 }
 
-//void eventProcessorFxn(UArg arg0, UArg arg1)
-//{
-//
-//    Mailbox_pend(WAIT_FOREVER,)
-//}
 
 /*
  *  ======== main ========
@@ -499,31 +390,22 @@ int main(void)
     Board_initGeneral();
     // Board_initI2C();
     Board_initSPI();
-//    Board_initUART();
+    Board_initUART();
     // Board_initWatchdog();
-    System_printf("Hello World!\n");
-
-//    UART_Params uartParams;
-//    UART_Params_init(&uartParams);
-////  uartParams.baudRate = 3000000; // WARNING
-//    uartParams.baudRate = 115200; // WARNING
-//    UART_Handle hUart = UART_open(Board_UART, &uartParams);
-//    //Initialize the logger output
-////    UartLog_init(hUart);
-//    UartPrintf_init()
 
     /* Construct heartBeat Task  thread */
     Task_Params_init(&taskParams);
     taskParams.arg0 = 1000000 / Clock_tickPeriod;
     taskParams.stackSize = TASKSTACKSIZE;
     taskParams.stack = &task0Stack;
-    Task_construct(&task0Struct, (Task_FuncPtr) heartBeatFxn, &taskParams,
+    Task_construct(&task0Struct, (Task_FuncPtr) maintask, &taskParams,
                    NULL);
 
-    /* Open LED pins */
+    /* Open and setup pins */
     setuppins();
 
-//    PIN_setOutputValue(ledPinHandle, Board_LED1, 1);
+    /* Open UART */
+    setupuart();
 
     /* Start BIOS */
     BIOS_start();
