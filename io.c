@@ -39,6 +39,7 @@ static PIN_State hdrPinState;
 
 static PIN_Handle btnPinHandle;
 static PIN_State btnPinState;
+static    void (*btnCallback)(void) = NULL;
 
 /* UART driver handle */
 static UART_Handle uartHandle;
@@ -84,7 +85,10 @@ PIN_Config btnPinTable[] = {
  */
 static void btnIntCallback(PIN_Handle handle, PIN_Id pinId)
 {
-    SysCtrlSystemReset();
+    if (btnCallback == NULL) {
+        SysCtrlSystemReset();
+    }
+    btnCallback();
 }
 
 void setuppins()
@@ -217,6 +221,10 @@ void togglePin(PIN_Id pin)
     }
 }
 
+int getPinInput(PIN_Id pin) {
+    return (int)PIN_getInputValue(pin);
+}
+
 void setLed(PIN_Id pin, uint_t value)
 {
     if (PIN_setOutputValue(ledPinHandle, pin, value) != PIN_SUCCESS)
@@ -232,6 +240,10 @@ void toggleLed(PIN_Id pin)
     {
         System_abort("Failed to toggle pin value\n");
     }
+}
+
+void setBtnCallback(void (*callback)(void)) {
+    btnCallback = callback;
 }
 
 /* Utilities */

@@ -27,9 +27,12 @@ char *uartreadline();
 
 void setPin(PIN_Id pin, uint_t value);
 void togglePin(PIN_Id pin);
+int  getPinInput(PIN_Id pin);
 
 void setLed(PIN_Id pin, uint_t value);
 void toggleLed(PIN_Id pin);
+
+void setBtnCallback(void (*callback)(void));
 
 void hexdump(uint8_t *data, size_t size);
 void uarthexdump(uint8_t *data, size_t size);
