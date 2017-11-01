@@ -1,5 +1,6 @@
 /**
- * This test program emits a "Hello World! - ##" message for some number of times and then goes to sleep properly.
+ * This test program emits a "Hello World! - ##" message for some number of times, goes to sleep for 5 sec,
+ * and then starts again.
  *
  * @author Craig Hesling <craig@hesling.com>
  */
@@ -270,30 +271,44 @@ void maintask(UArg arg0, UArg arg1)
 //    Radio.Rx(RX_TIMEOUT_VALUE);
 //    printf("# Radio.Rx( %u ) - Finished\n", RX_TIMEOUT_VALUE);
 
-    while (pktcount < 1)
-    {
-        UInt events;
-        char buf[64];
-        snprintf(buf, sizeof(buf), "Hello World! - %u", pktcount++);
-        printf("Sending: \"%s\"\n", buf);
-//        uartprintf("Sending: \"%s\"\n", buf);;
-        Radio.Send(buf, strlen(buf));
-        // There is no race condition here because events are persistent flags
-        events = Event_pend(radioEvents, Event_Id_NONE, EVENT_TXDONE | EVENT_TXTIMEOUT, BIOS_WAIT_FOREVER);
-        Task_sleep(TIME_MS * 20);
-//        Task_yield();
-    }
-
-    printf("Sleeping radio\n");
-    Radio.Sleep();
-    Task_sleep(TIME_MS * 100);
-    BoardDeInitMcu();
-    Task_sleep(TIME_MS * 100);
-
-    printf("Sleeping now\n");
+//    while (pktcount < 1)
+//    {
+//        UInt events;
+//        char buf[64];
+//        snprintf(buf, sizeof(buf), "Hello World! - %u", pktcount++);
+//        printf("Sending: \"%s\"\n", buf);
+////        uartprintf("Sending: \"%s\"\n", buf);;
+//        Radio.Send(buf, strlen(buf));
+//        // There is no race condition here because events are persistent flags
+//        events = Event_pend(radioEvents, Event_Id_NONE, EVENT_TXDONE | EVENT_TXTIMEOUT, BIOS_WAIT_FOREVER);
+//        Task_sleep(TIME_MS * 20);
+////        Task_yield();
+//    }
 
     while(1) {
-        Task_sleep(TIME_MS * 10000);
+        pktcount = 0;
+        while (pktcount < 1)
+        {
+            UInt events;
+            char buf[64];
+            snprintf(buf, sizeof(buf), "Hello World! - %u", pktcount++);
+            printf("Sending: \"%s\"\n", buf);
+    //        uartprintf("Sending: \"%s\"\n", buf);;
+            Radio.Send(buf, strlen(buf));
+            // There is no race condition here because events are persistent flags
+            events = Event_pend(radioEvents, Event_Id_NONE, EVENT_TXDONE | EVENT_TXTIMEOUT, BIOS_WAIT_FOREVER);
+            Task_sleep(TIME_MS * 20);
+        }
+
+        printf("Sleeping radio\n");
+        Radio.Sleep();
+        BoardDeInitMcu();
+
+        printf("Sleeping now for 5 sec\n");
+        Task_sleep(TIME_MS * 5000);
+
+        printf("Waking radio\n");
+        BoardInitMcu();
     }
 
 }
