@@ -76,14 +76,28 @@ const PIN_Config BoardGpioInitTable[] = {
 
     Board_RLED    | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW  | PIN_PUSHPULL | PIN_DRVSTR_MAX,         /* LED initially off             */
     Board_GLED    | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW  | PIN_PUSHPULL | PIN_DRVSTR_MAX,         /* LED initially off             */
-    Board_BTN     | PIN_INPUT_EN       | PIN_PULLUP    | PIN_IRQ_BOTHEDGES | PIN_HYSTERESIS,    /* Button is active low          */
+    Board_BTN     | PIN_INPUT_EN       | PIN_NOPULL,    /* Button is active low          */
     Board_UART_RX | PIN_INPUT_EN       | PIN_NOPULL,                                              /* UART RX via debugger back channel */
-    Board_UART_TX | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH | PIN_PUSHPULL,                        /* UART TX via debugger back channel */
+    Board_UART_TX | PIN_INPUT_EN       | PIN_NOPULL,                        /* UART TX via debugger back channel */
 //    Board_SPI0_MOSI | PIN_INPUT_EN | PIN_PULLDOWN,                                            /* SPI master out - slave in */
 //    Board_SPI0_MISO | PIN_INPUT_EN | PIN_PULLDOWN,                                            /* SPI master in - slave out */
 //    Board_SPI0_CLK  | PIN_INPUT_EN | PIN_PULLDOWN,                                             /* SPI clock */
 //    Board_SPI0_CSN  | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH | PIN_PUSHPULL,    // Ensure SPI slave 0 is not selected
 
+    Board_SX_MISO | PIN_INPUT_DIS | PIN_NOPULL,
+    Board_SX_MOSI | PIN_INPUT_DIS | PIN_NOPULL,
+    Board_SX_SCK  | PIN_INPUT_DIS | PIN_NOPULL,
+
+    Board_SX_RESET | PIN_GPIO_OUTPUT_DIS | PIN_GPIO_LOW,
+    Board_SX_NSS   | PIN_GPIO_OUTPUT_DIS | PIN_GPIO_LOW,
+    Board_SX_DIO0  | PIN_INPUT_EN | PIN_NOPULL,
+    Board_SX_DIO1  | PIN_INPUT_EN | PIN_NOPULL,
+    Board_SX_DIO2  | PIN_INPUT_EN | PIN_NOPULL,
+    Board_SX_DIO3  | PIN_INPUT_EN | PIN_NOPULL,
+    Board_SX_DIO4  | PIN_INPUT_EN | PIN_NOPULL,
+    Board_SX_DIO5  | PIN_INPUT_EN | PIN_NOPULL,
+    Board_SX_RF_CTRL1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW,
+    Board_SX_RF_CTRL2 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW,
     PIN_TERMINATE
 };
 
