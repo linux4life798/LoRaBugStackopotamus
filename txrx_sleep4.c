@@ -1,5 +1,5 @@
 /**
- * This properly sleeps the entire board
+ * This properly sleeps the entire board using more Semtech lib IO functions
  *
  * @author Craig Hesling <craig@hesling.com>
  */
@@ -31,6 +31,7 @@
 #include "radio.h"
 #include "io.h"
 
+#include <gpio-board.h>
 #include <spi.h>
 
 #include <ti/drivers/spi/SPICC26XXDMA.h>
@@ -43,28 +44,8 @@ Char task0Stack[TASKSTACKSIZE];
 static PIN_Handle sxPinHandle;
 static PIN_State sxPinState;
 
-static PIN_Handle sxSpiSleepPinHandle;
-static PIN_State sxSpiSleepPinState;
-
 PIN_Config sxPinTable[] = {
      Board_SX_RESET | PIN_GPIO_OUTPUT_DIS | PIN_GPIO_LOW,
-     Board_SX_NSS   | PIN_GPIO_OUTPUT_DIS | PIN_GPIO_HIGH,
-     Board_SX_DIO0  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO1  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO2  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO3  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO4  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO5  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_RF_CTRL1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW,
-     Board_SX_RF_CTRL2 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW,
-     PIN_TERMINATE
-};
-
-// Simple PIN_INPUT_EN | PIN_PULL_DOWN does not work
-PIN_Config sxSpiSleepPinTable[] = {
-     Board_SX_MOSI | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW,
-     Board_SX_MISO | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW,
-     Board_SX_SCK  | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW,
      PIN_TERMINATE
 };
 
@@ -73,45 +54,44 @@ PIN_Config sxSpiSleepPinTable[] = {
 
 void maintask(UArg arg0, UArg arg1)
 {
-    Spi_t spi;
-
     sxPinHandle = PIN_open(&sxPinState, sxPinTable);
     if (sxPinHandle == NULL)
     {
         System_abort("Failed to open board SX pins\n");
     }
 
-    SpiInit(&spi, NC, NC, NC, NC);
+    BoardInitMcu();
+    SX1276SetAntSwLowPower(false);
 
-    // Wait for radio to stablize
+    // Wait for radio to stabilize
     Task_sleep(TIME_MS * 100);
 
-    PIN_setOutputEnable(sxPinHandle, Board_SX_NSS, 1);
+    GpioMcuWrite(&SX1276.Spi.Nss, 1);
 
     // Get OP Mode
     {
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 0);
-        SpiInOut(&spi, READ|0x01);
-        uint16_t mode = SpiInOut(&spi, 0);
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 1);
+        GpioMcuWrite(&SX1276.Spi.Nss, 0);
+        SpiInOut(&SX1276.Spi, READ|0x01);
+        uint16_t mode = SpiInOut(&SX1276.Spi, 0);
+        GpioMcuWrite(&SX1276.Spi.Nss, 1);
         printf("Mode = 0x%X\n", mode);
     }
 
     // Read silicon version
     {
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 0);
-        SpiInOut(&spi, READ|0x42);
-        uint16_t ver = SpiInOut(&spi, 0);
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 1);
+        GpioMcuWrite(&SX1276.Spi.Nss, 0);
+        SpiInOut(&SX1276.Spi, READ|0x42);
+        uint16_t ver = SpiInOut(&SX1276.Spi, 0);
+        GpioMcuWrite(&SX1276.Spi.Nss, 1);
         printf("Version = 0x%X\n", ver); // Should be 0x12 for V1b(production)
     }
 
     // Set HF and Sleep Mode
     {
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 0);
-        SpiInOut(&spi, WRITE|0x01);
-        uint16_t mode = SpiInOut(&spi, 0);
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 1);
+        GpioMcuWrite(&SX1276.Spi.Nss, 0);
+        SpiInOut(&SX1276.Spi, WRITE|0x01);
+        uint16_t mode = SpiInOut(&SX1276.Spi, 0);
+        GpioMcuWrite(&SX1276.Spi.Nss, 1);
         printf("Prev Mode = 0x%X\n", mode);
     }
 
@@ -148,7 +128,7 @@ void maintask(UArg arg0, UArg arg1)
      */
 
 //    {
-//        SPI_Handle spiHandle = spi.Spi;
+//        SPI_Handle spiHandle = SX1276.Spi;
 //        // Get pinHandle
 //        PIN_Handle spiPinHandle = ((SPICC26XXDMA_Object *)spiHandle->object)->pinHandle;
 //        // Get mosi pin id
@@ -169,13 +149,9 @@ void maintask(UArg arg0, UArg arg1)
 //        }
 //    }
 
-    SpiDeInit(&spi);
 
-    sxSpiSleepPinHandle = PIN_open(&sxSpiSleepPinState, sxSpiSleepPinTable);
-    if (sxSpiSleepPinHandle == NULL)
-    {
-        System_abort("Failed to open board SX SPI Sleep pins\n");
-    }
+    SX1276SetAntSwLowPower(true);
+    BoardDeInitMcu();
 
     printf("Sleeping now\n");
 

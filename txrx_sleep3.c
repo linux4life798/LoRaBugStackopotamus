@@ -1,5 +1,5 @@
 /**
- * This properly sleeps the entire board
+ * This properly sleeps the entire board using more Semtech lib IO functions
  *
  * @author Craig Hesling <craig@hesling.com>
  */
@@ -31,6 +31,7 @@
 #include "radio.h"
 #include "io.h"
 
+#include <gpio-board.h>
 #include <spi.h>
 
 #include <ti/drivers/spi/SPICC26XXDMA.h>
@@ -48,15 +49,6 @@ static PIN_State sxSpiSleepPinState;
 
 PIN_Config sxPinTable[] = {
      Board_SX_RESET | PIN_GPIO_OUTPUT_DIS | PIN_GPIO_LOW,
-     Board_SX_NSS   | PIN_GPIO_OUTPUT_DIS | PIN_GPIO_HIGH,
-     Board_SX_DIO0  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO1  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO2  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO3  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO4  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_DIO5  | PIN_INPUT_DIS | PIN_NOPULL,
-     Board_SX_RF_CTRL1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW,
-     Board_SX_RF_CTRL2 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW,
      PIN_TERMINATE
 };
 
@@ -81,37 +73,39 @@ void maintask(UArg arg0, UArg arg1)
         System_abort("Failed to open board SX pins\n");
     }
 
+    SX1276IoInit();
+    SX1276SetAntSwLowPower(false);
     SpiInit(&spi, NC, NC, NC, NC);
 
-    // Wait for radio to stablize
+    // Wait for radio to stabilize
     Task_sleep(TIME_MS * 100);
 
-    PIN_setOutputEnable(sxPinHandle, Board_SX_NSS, 1);
+    GpioMcuWrite(&SX1276.Spi.Nss, 1);
 
     // Get OP Mode
     {
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 0);
+        GpioMcuWrite(&SX1276.Spi.Nss, 0);
         SpiInOut(&spi, READ|0x01);
         uint16_t mode = SpiInOut(&spi, 0);
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 1);
+        GpioMcuWrite(&SX1276.Spi.Nss, 1);
         printf("Mode = 0x%X\n", mode);
     }
 
     // Read silicon version
     {
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 0);
+        GpioMcuWrite(&SX1276.Spi.Nss, 0);
         SpiInOut(&spi, READ|0x42);
         uint16_t ver = SpiInOut(&spi, 0);
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 1);
+        GpioMcuWrite(&SX1276.Spi.Nss, 1);
         printf("Version = 0x%X\n", ver); // Should be 0x12 for V1b(production)
     }
 
     // Set HF and Sleep Mode
     {
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 0);
+        GpioMcuWrite(&SX1276.Spi.Nss, 0);
         SpiInOut(&spi, WRITE|0x01);
         uint16_t mode = SpiInOut(&spi, 0);
-        PIN_setOutputValue(sxPinHandle, Board_SX_NSS, 1);
+        GpioMcuWrite(&SX1276.Spi.Nss, 1);
         printf("Prev Mode = 0x%X\n", mode);
     }
 
@@ -170,6 +164,8 @@ void maintask(UArg arg0, UArg arg1)
 //    }
 
     SpiDeInit(&spi);
+    SX1276SetAntSwLowPower(true);
+    SX1276IoDeInit();
 
     sxSpiSleepPinHandle = PIN_open(&sxSpiSleepPinState, sxSpiSleepPinTable);
     if (sxSpiSleepPinHandle == NULL)
