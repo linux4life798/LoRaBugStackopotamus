@@ -301,7 +301,7 @@ void maintask(UArg arg0, UArg arg1)
         }
 
         printf("Sleeping radio\n");
-        Radio.Sleep();
+//        Radio.Sleep();
         BoardDeInitMcu();
 
         printf("Sleeping now for 5 sec\n");
