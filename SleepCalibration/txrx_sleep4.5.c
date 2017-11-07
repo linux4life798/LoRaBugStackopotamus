@@ -1,5 +1,6 @@
 /**
- * This properly sleeps the entire board using more Semtech lib IO functions
+ * This properly sleeps the entire board using more Semtech lib IO functions.
+ * This depend on the SPI pins being properly configured for sleep mode elsewhere
  *
  * @author Craig Hesling <craig@hesling.com>
  */
@@ -50,8 +51,31 @@ PIN_Config sxPinTable[] = {
      PIN_TERMINATE
 };
 
+
+//static Power_NotifyObj pwrNotifObj;
+
 #define READ (0<<7)
 #define WRITE (1<<7)
+
+///*
+// *  ======== spiMosiCorrect ========
+// *  This functions is called to notify the us of an imminent transition
+// *  in to sleep mode.
+// *
+// *  @pre    Function assumes that the SPI handle (clientArg) is pointing to a
+// *          hardware module which has already been opened.
+// */
+//static int spiMosiCorrect(unsigned int eventType, uintptr_t eventArg, uintptr_t clientArg);
+//{
+//    SPICC26XXDMA_Object *object;
+//    object = ((SPI_Handle) clientArg)->object;
+//
+//    /* In slave mode, optionally enable wakeup on CSN assert */
+//    if (object->wakeupCallbackFxn) {
+//        PIN_setInterrupt(object->pinHandle, object->csnPin | PIN_IRQ_NEGEDGE);
+//    }
+//    return Power_NOTIFYDONE;
+//}
 
 void maintask(UArg arg0, UArg arg1)
 {
@@ -63,6 +87,8 @@ void maintask(UArg arg0, UArg arg1)
 
     BoardInitMcu();
     SX1276SetAntSwLowPower(false);
+
+//    Power_registerNotify(&pwrNotifObj, PowerCC26XX_ENTERING_STANDBY|PowerCC26XX_AWAKE_STANDBY, (Fxn)spiMosiCorrect, (UInt32)NULL);
 
     // Wait for radio to stabilize
     Task_sleep(TIME_MS * 100);
@@ -152,7 +178,7 @@ void maintask(UArg arg0, UArg arg1)
 
 
     SX1276SetAntSwLowPower(true);
-    BoardDeInitMcu();
+//    BoardDeInitMcu();
 
     printf("Sleeping now\n");
 

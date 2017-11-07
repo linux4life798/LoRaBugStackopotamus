@@ -1,6 +1,9 @@
 /**
- * This test program emits a "Hello World! - ##" message for some number of times, goes to sleep for 5 sec,
+ * This test program emits a "Hello World! - ##" message for some number of times, goes to sleep for 3 sec,
  * and then starts again.
+ *
+ * This program is intended to use all sleep features of the LoRaWan
+ * lib HAL layer without doing any trickery in this routine.
  *
  * @author Craig Hesling <craig@hesling.com>
  */
@@ -301,14 +304,14 @@ void maintask(UArg arg0, UArg arg1)
         }
 
         printf("Sleeping radio\n");
-//        Radio.Sleep();
-        BoardDeInitMcu();
+        Radio.Sleep();
+//        BoardDeInitMcu();
 
-        printf("Sleeping now for 5 sec\n");
-        Task_sleep(TIME_MS * 5000);
+        printf("Sleeping now for 3 sec\n");
+        Task_sleep(TIME_MS * 3000);
 
         printf("Waking radio\n");
-        BoardInitMcu();
+//        BoardInitMcu();
     }
 
 }
