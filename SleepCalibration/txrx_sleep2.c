@@ -71,6 +71,17 @@ PIN_Config sxSpiSleepPinTable[] = {
 #define READ (0<<7)
 #define WRITE (1<<7)
 
+void print_bin(uint32_t val) {
+    int i;
+    for (i = 31; i >= 0; i--) {
+        if ((i % 4) == 0) {
+            printf("%d ", (val & (1<<i)) ? 1 : 0);
+        } else {
+            printf("%d", (val & (1<<i)) ? 1 : 0);
+        }
+    }
+}
+
 void maintask(UArg arg0, UArg arg1)
 {
     Spi_t spi;
@@ -158,24 +169,87 @@ void maintask(UArg arg0, UArg arg1)
 //        // Get clk pin id
 //        PIN_Id clkPinId = ((SPICC26XXDMA_HWAttrsV1 *)spiHandle->hwAttrs)->clkPin;
 //        // Apply low power sleep pull config for MISO - do a pull down only on miso
-//        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, misoPinId | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW) != PIN_SUCCESS) {
+////        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, misoPinId | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW) != PIN_SUCCESS) {
+////            System_abort("Failed to set pin config for miso\n");
+////        }
+////        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, mosiPinId | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW) != PIN_SUCCESS) {
+////            System_abort("Failed to set pin config for mosi\n");
+////        }
+////        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, clkPinId | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW) != PIN_SUCCESS) {
+////            System_abort("Failed to set pin config for sck\n");
+////        }
+//
+//        printf("miso prev config: 0x%X: ", (uint32_t)PIN_getConfig(misoPinId)); print_bin((uint32_t)PIN_getConfig(misoPinId)); printf("\n");
+//        printf("mosi prev config: 0x%X: ", (uint32_t)PIN_getConfig(mosiPinId)); print_bin((uint32_t)PIN_getConfig(mosiPinId)); printf("\n");
+//        printf("clk prev config:  0x%X: ", (uint32_t)PIN_getConfig(clkPinId)); print_bin((uint32_t)PIN_getConfig(clkPinId)); printf("\n");
+//
+//        printf("\n");
+//
+//        if (PIN_setConfig(spiPinHandle, PIN_BM_PULLING, misoPinId | PIN_PULLDOWN) != PIN_SUCCESS) {
 //            System_abort("Failed to set pin config for miso\n");
 //        }
-//        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, mosiPinId | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW) != PIN_SUCCESS) {
+//        if (PIN_setConfig(spiPinHandle, PIN_BM_GPIO_OUTPUT_EN|PIN_BM_OUTPUT_BUF|PIN_BM_DRVSTR, mosiPinId | PIN_GPIO_OUTPUT_EN | PIN_PUSHPULL | PIN_DRVSTR_MAX) != PIN_SUCCESS) {
 //            System_abort("Failed to set pin config for mosi\n");
 //        }
-//        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, clkPinId | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW) != PIN_SUCCESS) {
+//        if (PIN_setConfig(spiPinHandle, PIN_BM_GPIO_OUTPUT_EN|PIN_BM_OUTPUT_BUF|PIN_BM_DRVSTR, clkPinId | PIN_GPIO_OUTPUT_EN | PIN_PUSHPULL | PIN_DRVSTR_MAX) != PIN_SUCCESS) {
 //            System_abort("Failed to set pin config for sck\n");
 //        }
+//
+//        printf("miso new config:  0x%X: ", (uint32_t)PIN_getConfig(misoPinId)); print_bin((uint32_t)PIN_getConfig(misoPinId)); printf("\n");
+//        printf("mosi new config:  0x%X: ", (uint32_t)PIN_getConfig(mosiPinId)); print_bin((uint32_t)PIN_getConfig(mosiPinId)); printf("\n");
+//        printf("clk new config:   0x%X: ", (uint32_t)PIN_getConfig(clkPinId)); print_bin((uint32_t)PIN_getConfig(clkPinId)); printf("\n");
 //    }
 
-    SpiDeInit(&spi);
+//    {
+//        SPI_Handle spiHandle = spi.Spi;
+//        // Get pinHandle
+//        PIN_Handle spiPinHandle = ((SPICC26XXDMA_Object *)spiHandle->object)->pinHandle;
+//        // Get mosi pin id
+//        PIN_Id mosiPinId = ((SPICC26XXDMA_HWAttrsV1 *)spiHandle->hwAttrs)->mosiPin;
+//        // Get miso pin id
+//        PIN_Id misoPinId = ((SPICC26XXDMA_HWAttrsV1 *)spiHandle->hwAttrs)->misoPin;
+//        // Get clk pin id
+//        PIN_Id clkPinId = ((SPICC26XXDMA_HWAttrsV1 *)spiHandle->hwAttrs)->clkPin;
+//        // Apply low power sleep pull config for MISO - do a pull down only on miso
+////        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, misoPinId | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW) != PIN_SUCCESS) {
+////            System_abort("Failed to set pin config for miso\n");
+////        }
+////        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, mosiPinId | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW) != PIN_SUCCESS) {
+////            System_abort("Failed to set pin config for mosi\n");
+////        }
+////        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, clkPinId | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW) != PIN_SUCCESS) {
+////            System_abort("Failed to set pin config for sck\n");
+////        }
+//
+//        printf("miso prev config: 0x%X: ", (uint32_t)PIN_getConfig(misoPinId)); print_bin((uint32_t)PIN_getConfig(misoPinId)); printf("\n");
+//        printf("mosi prev config: 0x%X: ", (uint32_t)PIN_getConfig(mosiPinId)); print_bin((uint32_t)PIN_getConfig(mosiPinId)); printf("\n");
+//        printf("clk prev config:  0x%X: ", (uint32_t)PIN_getConfig(clkPinId)); print_bin((uint32_t)PIN_getConfig(clkPinId)); printf("\n");
+//
+//        printf("\n");
+//
+//        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, misoPinId | PIN_GPIO_OUTPUT_EN | PIN_PUSHPULL | PIN_GPIO_LOW) != PIN_SUCCESS) {
+//            System_abort("Failed to set pin config for miso\n");
+//        }
+//        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, mosiPinId | PIN_GPIO_OUTPUT_EN | PIN_PUSHPULL | PIN_GPIO_LOW ) != PIN_SUCCESS) {
+//            System_abort("Failed to set pin config for mosi\n");
+//        }
+//        if (PIN_setConfig(spiPinHandle, PIN_BM_ALL, clkPinId | PIN_GPIO_OUTPUT_EN | PIN_PUSHPULL | PIN_GPIO_LOW) != PIN_SUCCESS) {
+//            System_abort("Failed to set pin config for sck\n");
+//        }
+//
+//        printf("miso new config:  0x%X: ", (uint32_t)PIN_getConfig(misoPinId)); print_bin((uint32_t)PIN_getConfig(misoPinId)); printf("\n");
+//        printf("mosi new config:  0x%X: ", (uint32_t)PIN_getConfig(mosiPinId)); print_bin((uint32_t)PIN_getConfig(mosiPinId)); printf("\n");
+//        printf("clk new config:   0x%X: ", (uint32_t)PIN_getConfig(clkPinId)); print_bin((uint32_t)PIN_getConfig(clkPinId)); printf("\n");
+//    }
 
-    sxSpiSleepPinHandle = PIN_open(&sxSpiSleepPinState, sxSpiSleepPinTable);
-    if (sxSpiSleepPinHandle == NULL)
-    {
-        System_abort("Failed to open board SX SPI Sleep pins\n");
-    }
+
+//    SpiDeInit(&spi);
+//
+//    sxSpiSleepPinHandle = PIN_open(&sxSpiSleepPinState, sxSpiSleepPinTable);
+//    if (sxSpiSleepPinHandle == NULL)
+//    {
+//        System_abort("Failed to open board SX SPI Sleep pins\n");
+//    }
 
     printf("Sleeping now\n");
 
