@@ -1,0 +1,3 @@
+[submodule "lpmac"]
+	path = lpmac
+	url = git@github.com:linux4life798/LoRaBugLPMAC.git
