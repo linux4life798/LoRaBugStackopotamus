@@ -9,3 +9,9 @@ variable declaration. For this reason, you MUST change the C compiler Language
 mode to allow C99 syntax.
 Currently, the C99 syntax usage is isolated to the
 [LoRaMac.c](LoRaMac-node/src/mac/LoRaMac.c) file.
+
+# Sleep Power Consumption
+The LoRaBug should draw around 250nA during sleep.
+
+This has been confirmed using the `txrx_sleep6.c`
+example program on June 27, 2018.
