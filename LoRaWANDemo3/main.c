@@ -31,6 +31,8 @@
 Task_Struct task0Struct;
 Char task0Stack[TASKSTACKSIZE];
 
+#define LED_ONTIME_MS                               100
+
 
 /*------------------------------------------------------------------------*/
 /*                      Start of LoRaWan Demo Code                        */
@@ -39,23 +41,26 @@ Char task0Stack[TASKSTACKSIZE];
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            5000
+//#define APP_TX_DUTYCYCLE                            5000
+#define APP_TX_DUTYCYCLE                            3000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 1s,
  * value in [ms].
  */
-#define APP_TX_DUTYCYCLE_RND                        1000
+//#define APP_TX_DUTYCYCLE_RND                        1000
+#define APP_TX_DUTYCYCLE_RND                        1
 
 /*!
  * Default datarate
  */
-#define LORAWAN_DEFAULT_DATARATE                    DR_0
+//#define LORAWAN_DEFAULT_DATARATE                    DR_0
+#define LORAWAN_DEFAULT_DATARATE                    DR_4
 
 /*!
  * LoRaWAN confirmed messages
  */
-#define LORAWAN_CONFIRMED_MSG_ON                    false
+#define LORAWAN_CONFIRMED_MSG_ON                    true
 
 /*!
  * LoRaWAN Adaptive Data Rate
@@ -63,6 +68,7 @@ Char task0Stack[TASKSTACKSIZE];
  * \remark Please note that when ADR is enabled the end-device should be static
  */
 #define LORAWAN_ADR_ON                              1
+//#define LORAWAN_ADR_ON                              0
 
 #if defined( USE_BAND_868 )
 
@@ -532,12 +538,20 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
         {
         case 1: // The application LED can be controlled on port 1 or 2
         case 2:
-            if( mcpsIndication->BufferSize == 1 )
-            {
-                AppLedStateOn = mcpsIndication->Buffer[0] & 0x01;
-//                GpioWrite( &Led3, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 0 : 1 );
-                setLed(Board_RLED, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 1 : 0);
-            }
+            uartputs("got2\n");
+//            if( mcpsIndication->BufferSize == 1 )
+//            {
+//                AppLedStateOn = mcpsIndication->Buffer[0] & 0x01;
+////                GpioWrite( &Led3, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 0 : 1 );
+//                setLed(Board_RLED, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 1 : 0);
+//            }
+            togglePin(Board_HDR_HDIO0);
+            togglePin(Board_HDR_HDIO1);
+            togglePin(Board_HDR_HDIO2);
+            togglePin(Board_HDR_ADIO0);
+            togglePin(Board_HDR_ADIO1);
+            togglePin(Board_HDR_ADIO2);
+            togglePin(Board_HDR_ADIO3);
             break;
         case 224:
             if( ComplianceTest.Running == false )
@@ -658,15 +672,6 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                             mlmeReq.Req.TxCw.Timeout = ( uint16_t )( ( mcpsIndication->Buffer[1] << 8 ) | mcpsIndication->Buffer[2] );
                             LoRaMacMlmeRequest( &mlmeReq );
                         }
-                        else if( mcpsIndication->BufferSize == 7 )
-                        {
-                            MlmeReq_t mlmeReq;
-                            mlmeReq.Type = MLME_TXCW_1;
-                            mlmeReq.Req.TxCw.Timeout = ( uint16_t )( ( mcpsIndication->Buffer[1] << 8 ) | mcpsIndication->Buffer[2] );
-                            mlmeReq.Req.TxCw.Frequency = ( uint32_t )( ( mcpsIndication->Buffer[3] << 16 ) | ( mcpsIndication->Buffer[4] << 8 ) | mcpsIndication->Buffer[5] ) * 100;
-                            mlmeReq.Req.TxCw.Power = mcpsIndication->Buffer[6];
-                            LoRaMacMlmeRequest( &mlmeReq );
-                        }
                         ComplianceTest.State = 1;
                     }
                     break;
@@ -762,13 +767,13 @@ void maintask(UArg arg0, UArg arg1)
                 TimerInit( &TxNextPacketTimer, OnTxNextPacketTimerEvent );
 
                 TimerInit( &Led1Timer, OnLed1TimerEvent );
-                TimerSetValue( &Led1Timer, 25 );
+                TimerSetValue( &Led1Timer, LED_ONTIME_MS );
 
                 TimerInit( &Led2Timer, OnLed2TimerEvent );
-                TimerSetValue( &Led2Timer, 25 );
+                TimerSetValue( &Led2Timer, LED_ONTIME_MS );
 
                 TimerInit( &Led4Timer, OnLed4TimerEvent );
-                TimerSetValue( &Led4Timer, 25 );
+                TimerSetValue( &Led4Timer, LED_ONTIME_MS );
 
                 mibReq.Type = MIB_ADR;
                 mibReq.Param.AdrEnable = LORAWAN_ADR_ON;

@@ -169,7 +169,7 @@ void OnRxDone( uint8_t *payload, uint16_t size, int16_t rssi, int8_t snr )
     RssiValue = rssi;
     SnrValue = snr;
     hexdump(payload, size);
-    uart_hexdump(payload, size);
+    uarthexdump(payload, size);
     Event_post(radioEvents, EVENT_RXDONE);
 }
 

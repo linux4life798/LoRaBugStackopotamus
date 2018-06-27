@@ -1,5 +1,6 @@
 
 /* XDCtools Header files */
+#include <LabLEDs/Commissioning.h>
 #include <xdc/std.h>
 #include <xdc/runtime/System.h>
 
@@ -17,6 +18,7 @@
 
 /* Board Header files */
 #include "Board.h"
+#include "LEDBoard.h"
 
 #include <string.h> // strlen in uartputs and LoRaWan code
 #include <math.h>
@@ -24,33 +26,38 @@
 #include "io.h"
 
 #include "LoRaMac.h"
-#include "Commissioning.h"
 
 #define TASKSTACKSIZE   2048
 
 Task_Struct task0Struct;
 Char task0Stack[TASKSTACKSIZE];
 
+#define LED_ONTIME_MS                               100
 
 /*------------------------------------------------------------------------*/
 /*                      Start of LoRaWan Demo Code                        */
 /*------------------------------------------------------------------------*/
 
+#define USE_CLASS_C
+
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            5000
+//#define APP_TX_DUTYCYCLE                            5000
+#define APP_TX_DUTYCYCLE                            10000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 1s,
  * value in [ms].
  */
-#define APP_TX_DUTYCYCLE_RND                        1000
+//#define APP_TX_DUTYCYCLE_RND                        1000
+#define APP_TX_DUTYCYCLE_RND                        2000
 
 /*!
  * Default datarate
  */
-#define LORAWAN_DEFAULT_DATARATE                    DR_0
+//#define LORAWAN_DEFAULT_DATARATE                    DR_0
+#define LORAWAN_DEFAULT_DATARATE                    DR_4
 
 /*!
  * LoRaWAN confirmed messages
@@ -63,6 +70,7 @@ Char task0Stack[TASKSTACKSIZE];
  * \remark Please note that when ADR is enabled the end-device should be static
  */
 #define LORAWAN_ADR_ON                              1
+//#define LORAWAN_ADR_ON                              0
 
 #if defined( USE_BAND_868 )
 
@@ -214,6 +222,62 @@ struct ComplianceTest_s
     uint8_t NbGateways;
 }ComplianceTest;
 
+
+
+static uint_t red = 0, green = 0, blue = 0, white = 0;
+
+void ColorWrite() {
+    setPin(Board_TRI_RED, !red);
+    setPin(Board_FET_RED, red);
+
+    setPin(Board_TRI_GREEN, !green);
+    setPin(Board_FET_GREEN, green);
+
+    setPin(Board_TRI_BLUE, !blue);
+    setPin(Board_FET_BLUE, blue);
+
+    setPin(Board_FET_WHITE, white);
+}
+
+void ColorHandler(uint8_t color, uint8_t intensity) {
+    switch (color) {
+    case 'R':
+    case 'r':
+        red = !red;
+        uartputs("R");
+        break;
+    case 'G':
+    case 'g':
+        green = !green;
+        uartputs("G");
+        break;
+    case 'B':
+    case 'b':
+        blue = !blue;
+        uartputs("B");
+        break;
+    case 'W':
+    case 'w':
+        white = !white;
+        uartputs("W");
+        break;
+    case 'C':
+    case 'c':
+        red = green = blue = white = 0;
+    default:
+        uartputs("Invalid Color Byte");
+    }
+
+    ColorWrite();
+}
+
+void ColorReport(uint8_t *buf) {
+    buf[0] = red ? 'R':'C';
+    buf[1] = green ? 'G':'C';
+    buf[2] = blue ? 'B':'C';
+    buf[3] = white ? 'W':'C';
+}
+
 /*!
  * \brief   Prepares the payload of the frame
  */
@@ -282,8 +346,10 @@ static void PrepareTxFrame( uint8_t port )
 //            AppData[10] = altitudeGps & 0xFF;
 
             memset(AppData, '\0', sizeof(AppData));
-            memcpy(AppData, &counter, sizeof(counter));
-            AppDataSize = sizeof(counter);
+//            memcpy(AppData, &counter, sizeof(counter));
+//            AppDataSize = sizeof(counter);
+            ColorReport(AppData);
+            AppDataSize = 4;
             counter++;
 
 #endif
@@ -532,12 +598,15 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
         {
         case 1: // The application LED can be controlled on port 1 or 2
         case 2:
-            if( mcpsIndication->BufferSize == 1 )
-            {
-                AppLedStateOn = mcpsIndication->Buffer[0] & 0x01;
-//                GpioWrite( &Led3, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 0 : 1 );
-                setLed(Board_RLED, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 1 : 0);
-            }
+//            if( mcpsIndication->BufferSize == 1 )
+//            {
+//                AppLedStateOn = mcpsIndication->Buffer[0] & 0x01;
+////                GpioWrite( &Led3, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 0 : 1 );
+//                setLed(Board_RLED, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 1 : 0);
+//            }
+            ColorHandler(mcpsIndication->Buffer[0], 100);
+            uartputs("Got The Following Packet:");
+            uarthexdump(mcpsIndication->Buffer, mcpsIndication->BufferSize);
             break;
         case 224:
             if( ComplianceTest.Running == false )
@@ -658,15 +727,6 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                             mlmeReq.Req.TxCw.Timeout = ( uint16_t )( ( mcpsIndication->Buffer[1] << 8 ) | mcpsIndication->Buffer[2] );
                             LoRaMacMlmeRequest( &mlmeReq );
                         }
-                        else if( mcpsIndication->BufferSize == 7 )
-                        {
-                            MlmeReq_t mlmeReq;
-                            mlmeReq.Type = MLME_TXCW_1;
-                            mlmeReq.Req.TxCw.Timeout = ( uint16_t )( ( mcpsIndication->Buffer[1] << 8 ) | mcpsIndication->Buffer[2] );
-                            mlmeReq.Req.TxCw.Frequency = ( uint32_t )( ( mcpsIndication->Buffer[3] << 16 ) | ( mcpsIndication->Buffer[4] << 8 ) | mcpsIndication->Buffer[5] ) * 100;
-                            mlmeReq.Req.TxCw.Power = mcpsIndication->Buffer[6];
-                            LoRaMacMlmeRequest( &mlmeReq );
-                        }
                         ComplianceTest.State = 1;
                     }
                     break;
@@ -704,11 +764,15 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
             {
                 // Status is OK, node has joined the network
                 DeviceState = DEVICE_STATE_SEND;
+//                DeviceState = DEVICE_STATE_SLEEP;
+                setLed(Board_GLED, 0);
+                uartprintf("# Join - Success\n");
             }
             else
             {
                 // Join was not successful. Try to join again
                 DeviceState = DEVICE_STATE_JOIN;
+                uartprintf("# Join - Failed\n");
             }
             break;
         }
@@ -753,6 +817,9 @@ void maintask(UArg arg0, UArg arg1)
             case DEVICE_STATE_INIT:
             {
                 printf("# DeviceState: DEVICE_STATE_INIT\n");
+
+                ColorWrite();
+
                 LoRaMacPrimitives.MacMcpsConfirm = McpsConfirm;
                 LoRaMacPrimitives.MacMcpsIndication = McpsIndication;
                 LoRaMacPrimitives.MacMlmeConfirm = MlmeConfirm;
@@ -762,13 +829,13 @@ void maintask(UArg arg0, UArg arg1)
                 TimerInit( &TxNextPacketTimer, OnTxNextPacketTimerEvent );
 
                 TimerInit( &Led1Timer, OnLed1TimerEvent );
-                TimerSetValue( &Led1Timer, 25 );
+                TimerSetValue( &Led1Timer, LED_ONTIME_MS );
 
                 TimerInit( &Led2Timer, OnLed2TimerEvent );
-                TimerSetValue( &Led2Timer, 25 );
+                TimerSetValue( &Led2Timer, LED_ONTIME_MS );
 
                 TimerInit( &Led4Timer, OnLed4TimerEvent );
-                TimerSetValue( &Led4Timer, 25 );
+                TimerSetValue( &Led4Timer, LED_ONTIME_MS );
 
                 mibReq.Type = MIB_ADR;
                 mibReq.Param.AdrEnable = LORAWAN_ADR_ON;
@@ -800,12 +867,21 @@ void maintask(UArg arg0, UArg arg1)
 #endif
 
 #endif
+
+#ifdef USE_CLASS_C
+                mibReq.Type = MIB_DEVICE_CLASS;
+                mibReq.Param.Class = CLASS_C;
+                LoRaMacMibSetRequestConfirm( &mibReq );
+#endif
+
                 DeviceState = DEVICE_STATE_JOIN;
                 break;
             }
             case DEVICE_STATE_JOIN:
             {
                 printf("# DeviceState: DEVICE_STATE_JOIN\n");
+                uartprintf("# Joining\n");
+                setLed(Board_GLED, 1);
 #if( OVER_THE_AIR_ACTIVATION != 0 )
                 MlmeReq_t mlmeReq;
 

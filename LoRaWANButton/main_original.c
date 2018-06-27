@@ -31,6 +31,7 @@
 Task_Struct task0Struct;
 Char task0Stack[TASKSTACKSIZE];
 
+#define LED_ONTIME_MS                               100
 
 /*------------------------------------------------------------------------*/
 /*                      Start of LoRaWan Demo Code                        */
@@ -39,22 +40,26 @@ Char task0Stack[TASKSTACKSIZE];
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            5000
+//#define APP_TX_DUTYCYCLE                            5000
+#define APP_TX_DUTYCYCLE                            1000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 1s,
  * value in [ms].
  */
-#define APP_TX_DUTYCYCLE_RND                        1000
+//#define APP_TX_DUTYCYCLE_RND                        1000
+#define APP_TX_DUTYCYCLE_RND                        1
 
 /*!
  * Default datarate
  */
-#define LORAWAN_DEFAULT_DATARATE                    DR_0
+//#define LORAWAN_DEFAULT_DATARATE                    DR_0
+#define LORAWAN_DEFAULT_DATARATE                    DR_4
 
 /*!
  * LoRaWAN confirmed messages
  */
+//#define LORAWAN_CONFIRMED_MSG_ON                    true
 #define LORAWAN_CONFIRMED_MSG_ON                    false
 
 /*!
@@ -63,6 +68,8 @@ Char task0Stack[TASKSTACKSIZE];
  * \remark Please note that when ADR is enabled the end-device should be static
  */
 #define LORAWAN_ADR_ON                              1
+//#define LORAWAN_ADR_ON                              0
+
 
 #if defined( USE_BAND_868 )
 
@@ -184,6 +191,11 @@ static TimerEvent_t Led4Timer;
  * Indicates if a new packet can be sent
  */
 static bool NextTx = true;
+
+/*!
+ * Allow the user to schedule a packet to send immediately when we join
+ */
+static SendOnJoin = false;
 
 /*!
  * Device states
@@ -372,7 +384,7 @@ static bool SendFrame( void )
  */
 static void OnTxNextPacketTimerEvent( void )
 {
-    printf("# OnTxNextPacketTimerEvent\n");
+//    printf("# OnTxNextPacketTimerEvent\n");
     MibRequestConfirm_t mibReq;
     LoRaMacStatus_t status;
 
@@ -391,8 +403,13 @@ static void OnTxNextPacketTimerEvent( void )
         else
         {
             DeviceState = DEVICE_STATE_JOIN;
+            SendOnJoin = true;
         }
     }
+    setLed(Board_RLED, 1);
+    TimerStart( &Led2Timer );
+
+    setLed(Board_GLED, 1); // denote busy - turned off on send confirm
 }
 
 /*!
@@ -467,8 +484,9 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
 
         // Switch LED 1 ON
 //        GpioWrite( &Led1, 0 );
-        setLed(Board_GLED, 1);
-        TimerStart( &Led1Timer );
+//        setLed(Board_GLED, 1);
+//        TimerStart( &Led1Timer );
+        setLed(Board_GLED, 0);
     }
     NextTx = true;
 }
@@ -658,15 +676,6 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                             mlmeReq.Req.TxCw.Timeout = ( uint16_t )( ( mcpsIndication->Buffer[1] << 8 ) | mcpsIndication->Buffer[2] );
                             LoRaMacMlmeRequest( &mlmeReq );
                         }
-                        else if( mcpsIndication->BufferSize == 7 )
-                        {
-                            MlmeReq_t mlmeReq;
-                            mlmeReq.Type = MLME_TXCW_1;
-                            mlmeReq.Req.TxCw.Timeout = ( uint16_t )( ( mcpsIndication->Buffer[1] << 8 ) | mcpsIndication->Buffer[2] );
-                            mlmeReq.Req.TxCw.Frequency = ( uint32_t )( ( mcpsIndication->Buffer[3] << 16 ) | ( mcpsIndication->Buffer[4] << 8 ) | mcpsIndication->Buffer[5] ) * 100;
-                            mlmeReq.Req.TxCw.Power = mcpsIndication->Buffer[6];
-                            LoRaMacMlmeRequest( &mlmeReq );
-                        }
                         ComplianceTest.State = 1;
                     }
                     break;
@@ -703,12 +712,18 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
             if( mlmeConfirm->Status == LORAMAC_EVENT_INFO_STATUS_OK )
             {
                 // Status is OK, node has joined the network
-                DeviceState = DEVICE_STATE_SEND;
+//                DeviceState = DEVICE_STATE_SEND;
+                DeviceState = SendOnJoin ? DEVICE_STATE_SEND:DEVICE_STATE_SLEEP;
+
+                setLed(Board_GLED, 0);
             }
             else
             {
                 // Join was not successful. Try to join again
                 DeviceState = DEVICE_STATE_JOIN;
+
+                setLed(Board_RLED, 1);
+                TimerStart( &Led2Timer );
             }
             break;
         }
@@ -760,15 +775,17 @@ void maintask(UArg arg0, UArg arg1)
                 LoRaMacInitialization( &LoRaMacPrimitives, &LoRaMacCallbacks );
 
                 TimerInit( &TxNextPacketTimer, OnTxNextPacketTimerEvent );
+                // Listen for button press to trigger next packet instead of timer
+                setBtnCallback(OnTxNextPacketTimerEvent);
 
                 TimerInit( &Led1Timer, OnLed1TimerEvent );
-                TimerSetValue( &Led1Timer, 25 );
+                TimerSetValue( &Led1Timer, LED_ONTIME_MS );
 
                 TimerInit( &Led2Timer, OnLed2TimerEvent );
-                TimerSetValue( &Led2Timer, 25 );
+                TimerSetValue( &Led2Timer, LED_ONTIME_MS );
 
                 TimerInit( &Led4Timer, OnLed4TimerEvent );
-                TimerSetValue( &Led4Timer, 25 );
+                TimerSetValue( &Led4Timer, LED_ONTIME_MS );
 
                 mibReq.Type = MIB_ADR;
                 mibReq.Param.AdrEnable = LORAWAN_ADR_ON;
@@ -806,6 +823,7 @@ void maintask(UArg arg0, UArg arg1)
             case DEVICE_STATE_JOIN:
             {
                 printf("# DeviceState: DEVICE_STATE_JOIN\n");
+                setLed(Board_GLED, 1);
 #if( OVER_THE_AIR_ACTIVATION != 0 )
                 MlmeReq_t mlmeReq;
 
@@ -887,8 +905,9 @@ void maintask(UArg arg0, UArg arg1)
                 DeviceState = DEVICE_STATE_SLEEP;
 
                 // Schedule next packet transmission
-                TimerSetValue( &TxNextPacketTimer, TxDutyCycleTime );
-                TimerStart( &TxNextPacketTimer );
+//                TimerSetValue( &TxNextPacketTimer, TxDutyCycleTime );
+//                TimerStart( &TxNextPacketTimer );
+                // wait for button press instead
                 break;
             }
             case DEVICE_STATE_SLEEP:

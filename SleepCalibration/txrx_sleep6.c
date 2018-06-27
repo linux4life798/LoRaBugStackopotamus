@@ -5,6 +5,11 @@
  * This program is intended to use all sleep features of the LoRaWan
  * lib HAL layer without doing any trickery in this routine.
  *
+ * Use this program as the main tester for sleeping.
+ *
+ * This program is confirmed to reach about 250nA during the Task_Sleep
+ * section on June 26, 2018.
+ *
  * @author Craig Hesling <craig@hesling.com>
  */
 
@@ -270,23 +275,6 @@ void maintask(UArg arg0, UArg arg1)
 #error "Please define a frequency band in the compiler options."
 #endif
 
-//    printf("# Radio.Rx( %u ) - Starting\n", RX_TIMEOUT_VALUE);
-//    Radio.Rx(RX_TIMEOUT_VALUE);
-//    printf("# Radio.Rx( %u ) - Finished\n", RX_TIMEOUT_VALUE);
-
-//    while (pktcount < 1)
-//    {
-//        UInt events;
-//        char buf[64];
-//        snprintf(buf, sizeof(buf), "Hello World! - %u", pktcount++);
-//        printf("Sending: \"%s\"\n", buf);
-////        uartprintf("Sending: \"%s\"\n", buf);;
-//        Radio.Send(buf, strlen(buf));
-//        // There is no race condition here because events are persistent flags
-//        events = Event_pend(radioEvents, Event_Id_NONE, EVENT_TXDONE | EVENT_TXTIMEOUT, BIOS_WAIT_FOREVER);
-//        Task_sleep(TIME_MS * 20);
-////        Task_yield();
-//    }
 
     while(1) {
         pktcount = 0;
@@ -304,14 +292,10 @@ void maintask(UArg arg0, UArg arg1)
         }
 
         printf("Sleeping radio\n");
-        Radio.Sleep();
-//        BoardDeInitMcu();
+        Radio.Sleep(); // This is probably not needed, since it put the radio into slee by default
 
         printf("Sleeping now for 3 sec\n");
         Task_sleep(TIME_MS * 3000);
-
-        printf("Waking radio\n");
-//        BoardInitMcu();
     }
 
 }
@@ -328,7 +312,7 @@ int main(void)
     Board_initGeneral();
     // Board_initI2C();
     Board_initSPI();
-//    Board_initUART();
+    Board_initUART();
     // Board_initWatchdog();
 
     /* Construct heartBeat Task  thread */

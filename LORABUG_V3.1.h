@@ -129,12 +129,12 @@ extern const PIN_Config BoardGpioInitTable[];
 /* PWM outputs */
 #define Board_PWMPIN0                       Board_RLED
 #define Board_PWMPIN1                       Board_GLED
-#define Board_PWMPIN2                       PIN_UNASSIGNED
-#define Board_PWMPIN3                       PIN_UNASSIGNED
-#define Board_PWMPIN4                       PIN_UNASSIGNED
-#define Board_PWMPIN5                       PIN_UNASSIGNED
-#define Board_PWMPIN6                       PIN_UNASSIGNED
-#define Board_PWMPIN7                       PIN_UNASSIGNED
+#define Board_PWMPIN2                       Board_HDR_HDIO0
+#define Board_PWMPIN3                       Board_HDR_HDIO1
+#define Board_PWMPIN4                       Board_HDR_HDIO2
+#define Board_PWMPIN5                       Board_HDR_ADIO0
+#define Board_PWMPIN6                       Board_HDR_ADIO1
+#define Board_PWMPIN7                       Board_HDR_ADIO2
 
 /** ============================================================================
  *  Instance identifiers

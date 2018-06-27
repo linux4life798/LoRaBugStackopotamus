@@ -15,13 +15,16 @@
 #include <ti/drivers/UART.h>
 // #include <ti/drivers/Watchdog.h>
 
+#include <driverlib/sys_ctrl.h> // SysCtrlSystemReset()
+
 /* Board Header files */
 #include "Board.h"
+
+#define TIME_MS (1000/Clock_tickPeriod)
 
 #include <string.h> // strlen in uartputs and LoRaWan code
 #include <math.h>
 #include "board.h"
-#include "io.h"
 
 #include "LoRaMac.h"
 #include "Commissioning.h"
@@ -31,6 +34,166 @@
 Task_Struct task0Struct;
 Char task0Stack[TASKSTACKSIZE];
 
+/* Pin driver handle */
+static PIN_Handle ledPinHandle;
+static PIN_State ledPinState;
+static PIN_Handle hdrPinHandle;
+static PIN_State hdrPinState;
+
+static PIN_Handle btnPinHandle;
+static PIN_State btnPinState;
+
+/* UART driver handle */
+static UART_Handle uartHandle;
+
+/*
+ * Application LED pin configuration table:
+ *   - All LEDs board LEDs are off.
+ */
+PIN_Config ledPinTable[] = {
+    Board_LED0 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    Board_LED1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    PIN_TERMINATE
+};
+
+PIN_Config hdrPinTable[] = {
+     Board_HDR_HDIO0 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+     Board_HDR_HDIO1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+     Board_HDR_HDIO2 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+     Board_HDR_ADIO0 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL,
+     Board_HDR_ADIO1 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL,
+     Board_HDR_ADIO2 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL,
+     Board_HDR_ADIO3 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL,
+     Board_HDR_ADIO4 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL,
+     Board_HDR_ADIO5 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL,
+     Board_HDR_ADIO6 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL,
+     Board_HDR_ADIO7 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL,
+     PIN_TERMINATE
+};
+
+PIN_Config btnPinTable[] = {
+    Board_BTN | PIN_INPUT_EN | PIN_NOPULL | PIN_IRQ_NEGEDGE,
+    PIN_TERMINATE
+};
+
+/**
+ * Do a system hard reset when triggered
+ */
+static void btnIntCallback(PIN_Handle handle, PIN_Id pinId) {
+    SysCtrlSystemReset();
+}
+
+static void setuppins() {
+    ledPinHandle = PIN_open(&ledPinState, ledPinTable);
+    if (ledPinHandle == NULL) {
+        System_abort("Failed to open board LED pins\n");
+    }
+    hdrPinHandle = PIN_open(&hdrPinState, hdrPinTable);
+    if (hdrPinHandle == NULL) {
+        System_abort("Failed to open board header pins\n");
+    }
+    btnPinHandle = PIN_open(&btnPinState, btnPinTable);
+    if (btnPinHandle == NULL) {
+        System_abort("Failed to open board BTN pin\n");
+    }
+    if (PIN_registerIntCb(btnPinHandle, btnIntCallback) != PIN_SUCCESS) {
+        System_abort("Failed to register btn int callback\n");
+    }
+}
+
+static void setupuart() {
+    UART_Params uartParams;
+    UART_Params_init(&uartParams);
+    uartParams.baudRate = 115200; // 3000000
+    uartHandle = UART_open(Board_UART, &uartParams);
+    if (!uartHandle) {
+        System_abort("Failed to open UART\n");
+    }
+
+//    // Initialize the logger output
+//    UartLog_init(hUart);
+//    UartPrintf_init()
+}
+
+/**
+ * Print the given C string to UART followed by carriage return and new line.
+ *
+ * We define this little function, since we want the primary
+ * logging to be over cJTAG, not UART.
+ * @param str The C string to print
+ */
+static void uartputs(const char *str) {
+    if (UART_write(uartHandle, str, strlen(str)) == UART_ERROR) {
+        System_abort("Failed to write str to uart\n");
+    }
+    if (UART_write(uartHandle, "\r\n", 2) == UART_ERROR) {
+        System_abort("Failed to write CRLR to uart\n");
+    }
+}
+
+void setPin(PIN_Id pin, uint_t value)
+{
+    if (PIN_setOutputValue(hdrPinHandle, pin, value) != PIN_SUCCESS)
+    {
+        System_abort("Failed to set pin value\n");
+    }
+}
+
+void togglePin(PIN_Id pin)
+{
+    if (PIN_setOutputValue(hdrPinHandle, pin,
+                           !PIN_getOutputValue(pin)) != PIN_SUCCESS)
+    {
+        System_abort("Failed to toggle pin value\n");
+    }
+}
+
+//static
+void setLed(PIN_Id pin, uint_t value)
+{
+    if (PIN_setOutputValue(ledPinHandle, pin, value) != PIN_SUCCESS)
+    {
+        System_abort("Failed to set pin value\n");
+    }
+}
+
+//static
+void toggleLed(PIN_Id pin)
+{
+    if (PIN_setOutputValue(ledPinHandle, pin,
+                           !PIN_getOutputValue(pin)) != PIN_SUCCESS)
+    {
+        System_abort("Failed to toggle pin value\n");
+    }
+}
+
+void printstate()
+{
+    PIN_Status pstatus;
+    RadioState_t state = Radio.GetStatus();
+    switch (state)
+    {
+    case RF_IDLE:
+        pstatus = PIN_setOutputValue(ledPinHandle, Board_RLED, 0);
+        printf("RF_IDLE\n");
+        break;
+    case RF_RX_RUNNING:
+        pstatus = PIN_setOutputValue(ledPinHandle, Board_RLED, 1);
+        printf("RF_RX_RUNNING\n");
+        break;
+    case RF_TX_RUNNING:
+        pstatus = PIN_setOutputValue(ledPinHandle, Board_RLED, 1);
+        printf("RF_TX_RUNNING\n");
+        break;
+    case RF_CAD:
+        pstatus = PIN_setOutputValue(ledPinHandle, Board_RLED, 1);
+        printf("RF_CAD\n");
+        break;
+    }
+    if (pstatus != PIN_SUCCESS) {
+        System_abort("Failed to set Red LED value\n");
+    }
+}
 
 /*------------------------------------------------------------------------*/
 /*                      Start of LoRaWan Demo Code                        */
@@ -55,7 +218,7 @@ Char task0Stack[TASKSTACKSIZE];
 /*!
  * LoRaWAN confirmed messages
  */
-#define LORAWAN_CONFIRMED_MSG_ON                    false
+#define LORAWAN_CONFIRMED_MSG_ON                    true
 
 /*!
  * LoRaWAN Adaptive Data Rate
@@ -219,7 +382,6 @@ struct ComplianceTest_s
  */
 static void PrepareTxFrame( uint8_t port )
 {
-    static uint32_t counter = 0;
     printf("# PrepareTxFrame\n");
 
     switch( port )
@@ -258,34 +420,28 @@ static void PrepareTxFrame( uint8_t port )
             AppData[14] = ( altitudeGps >> 8 ) & 0xFF;
             AppData[15] = altitudeGps & 0xFF;
 #elif defined( USE_BAND_915 ) || defined( USE_BAND_915_HYBRID )
-//            int16_t temperature = 0;
-//            int32_t latitude = 0, longitude = 0;
-//            uint16_t altitudeGps = 0xFFFF;
-//            uint8_t batteryLevel = 0;
+            int16_t temperature = 0;
+            int32_t latitude, longitude = 0;
+            uint16_t altitudeGps = 0xFFFF;
+            uint8_t batteryLevel = 0;
 
 //            temperature = ( int16_t )( MPL3115ReadTemperature( ) * 100 );       // in �C * 100
 
-//            batteryLevel = BoardGetBatteryLevel( );                             // 1 (very low) to 254 (fully charged)
+            batteryLevel = BoardGetBatteryLevel( );                             // 1 (very low) to 254 (fully charged)
 //            GpsGetLatestGpsPositionBinary( &latitude, &longitude );
 //            altitudeGps = GpsGetLatestGpsAltitude( );                           // in m
 
-//            AppData[0] = AppLedStateOn;
-//            AppData[1] = temperature;                                           // Signed degrees celsius in half degree units. So,  +/-63 C
-//            AppData[2] = batteryLevel;                                          // Per LoRaWAN spec; 0=Charging; 1...254 = level, 255 = N/A
-//            AppData[3] = ( latitude >> 16 ) & 0xFF;
-//            AppData[4] = ( latitude >> 8 ) & 0xFF;
-//            AppData[5] = latitude & 0xFF;
-//            AppData[6] = ( longitude >> 16 ) & 0xFF;
-//            AppData[7] = ( longitude >> 8 ) & 0xFF;
-//            AppData[8] = longitude & 0xFF;
-//            AppData[9] = ( altitudeGps >> 8 ) & 0xFF;
-//            AppData[10] = altitudeGps & 0xFF;
-
-            memset(AppData, '\0', sizeof(AppData));
-            memcpy(AppData, &counter, sizeof(counter));
-            AppDataSize = sizeof(counter);
-            counter++;
-
+            AppData[0] = AppLedStateOn;
+            AppData[1] = temperature;                                           // Signed degrees celsius in half degree units. So,  +/-63 C
+            AppData[2] = batteryLevel;                                          // Per LoRaWAN spec; 0=Charging; 1...254 = level, 255 = N/A
+            AppData[3] = ( latitude >> 16 ) & 0xFF;
+            AppData[4] = ( latitude >> 8 ) & 0xFF;
+            AppData[5] = latitude & 0xFF;
+            AppData[6] = ( longitude >> 16 ) & 0xFF;
+            AppData[7] = ( longitude >> 8 ) & 0xFF;
+            AppData[8] = longitude & 0xFF;
+            AppData[9] = ( altitudeGps >> 8 ) & 0xFF;
+            AppData[10] = altitudeGps & 0xFF;
 #endif
         }
         break;
@@ -658,15 +814,6 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                             mlmeReq.Req.TxCw.Timeout = ( uint16_t )( ( mcpsIndication->Buffer[1] << 8 ) | mcpsIndication->Buffer[2] );
                             LoRaMacMlmeRequest( &mlmeReq );
                         }
-                        else if( mcpsIndication->BufferSize == 7 )
-                        {
-                            MlmeReq_t mlmeReq;
-                            mlmeReq.Type = MLME_TXCW_1;
-                            mlmeReq.Req.TxCw.Timeout = ( uint16_t )( ( mcpsIndication->Buffer[1] << 8 ) | mcpsIndication->Buffer[2] );
-                            mlmeReq.Req.TxCw.Frequency = ( uint32_t )( ( mcpsIndication->Buffer[3] << 16 ) | ( mcpsIndication->Buffer[4] << 8 ) | mcpsIndication->Buffer[5] ) * 100;
-                            mlmeReq.Req.TxCw.Power = mcpsIndication->Buffer[6];
-                            LoRaMacMlmeRequest( &mlmeReq );
-                        }
                         ComplianceTest.State = 1;
                     }
                     break;
@@ -897,7 +1044,6 @@ void maintask(UArg arg0, UArg arg1)
                 // Wake up through events
 //                TimerLowPowerHandler( );
                 Task_sleep(TIME_MS * 10);
-//                Task_yield();
                 break;
             }
             default:
@@ -920,8 +1066,6 @@ void maintask(UArg arg0, UArg arg1)
  *  ======== main ========
  */
 int main(void)
-
-
 {
     Task_Params taskParams;
 
@@ -940,7 +1084,7 @@ int main(void)
     Task_construct(&task0Struct, (Task_FuncPtr) maintask, &taskParams,
                    NULL);
 
-    /* Open and setup pins */
+    /* Open LED pins */
     setuppins();
 
     /* Open UART */

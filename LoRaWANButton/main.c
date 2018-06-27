@@ -7,6 +7,7 @@
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Event.h>
 
 /* TI-RTOS Header files */
 // #include <ti/drivers/I2C.h>
@@ -32,6 +33,11 @@ Task_Struct task0Struct;
 Char task0Stack[TASKSTACKSIZE];
 
 #define LED_ONTIME_MS                               100
+
+/* Runtime Events */
+#define EVENT_STATECHANGE Event_Id_00
+static Event_Struct runtimeEventsStruct;
+static Event_Handle runtimeEvents;
 
 /*------------------------------------------------------------------------*/
 /*                      Start of LoRaWan Demo Code                        */
@@ -71,33 +77,6 @@ Char task0Stack[TASKSTACKSIZE];
 //#define LORAWAN_ADR_ON                              0
 
 
-#if defined( USE_BAND_868 )
-
-#include "LoRaMacTest.h"
-
-/*!
- * LoRaWAN ETSI duty cycle control enable/disable
- *
- * \remark Please note that ETSI mandates duty cycled transmissions. Use only for test purposes
- */
-#define LORAWAN_DUTYCYCLE_ON                        true
-
-#define USE_SEMTECH_DEFAULT_CHANNEL_LINEUP          1
-
-#if( USE_SEMTECH_DEFAULT_CHANNEL_LINEUP == 1 )
-
-#define LC4                { 867100000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
-#define LC5                { 867300000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
-#define LC6                { 867500000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
-#define LC7                { 867700000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
-#define LC8                { 867900000, { ( ( DR_5 << 4 ) | DR_0 ) }, 0 }
-#define LC9                { 868800000, { ( ( DR_7 << 4 ) | DR_7 ) }, 2 }
-#define LC10               { 868300000, { ( ( DR_6 << 4 ) | DR_6 ) }, 1 }
-
-#endif
-
-#endif
-
 /*!
  * LoRaWAN application port
  */
@@ -106,15 +85,7 @@ Char task0Stack[TASKSTACKSIZE];
 /*!
  * User application data buffer size
  */
-#if defined( USE_BAND_433 ) || defined( USE_BAND_470 ) || defined( USE_BAND_780 ) || defined( USE_BAND_868 )
-
-#define LORAWAN_APP_DATA_SIZE                       16
-
-#elif defined( USE_BAND_915 ) || defined( USE_BAND_915_HYBRID )
-
 #define LORAWAN_APP_DATA_SIZE                       11
-
-#endif
 
 static uint8_t DevEui[] = LORAWAN_DEVICE_EUI;
 static uint8_t AppEui[] = LORAWAN_APPLICATION_EUI;
@@ -183,11 +154,6 @@ static TimerEvent_t Led1Timer;
 static TimerEvent_t Led2Timer;
 
 /*!
- * Timer to handle the state of LED4
- */
-static TimerEvent_t Led4Timer;
-
-/*!
  * Indicates if a new packet can be sent
  */
 static bool NextTx = true;
@@ -238,67 +204,13 @@ static void PrepareTxFrame( uint8_t port )
     {
     case 2:
         {
-#if defined( USE_BAND_433 ) || defined( USE_BAND_470 ) || defined( USE_BAND_780 ) || defined( USE_BAND_868 )
-            uint16_t pressure = 0;
-            int16_t altitudeBar = 0;
-            int16_t temperature = 0;
-            int32_t latitude, longitude = 0;
-            int16_t altitudeGps = 0xFFFF;
-            uint8_t batteryLevel = 0;
-
-            pressure = ( uint16_t )( MPL3115ReadPressure( ) / 10 );             // in hPa / 10
-            temperature = ( int16_t )( MPL3115ReadTemperature( ) * 100 );       // in �C * 100
-            altitudeBar = ( int16_t )( MPL3115ReadAltitude( ) * 10 );           // in m * 10
-            batteryLevel = BoardGetBatteryLevel( );                             // 1 (very low) to 254 (fully charged)
-//            GpsGetLatestGpsPositionBinary( &latitude, &longitude );
-//            altitudeGps = GpsGetLatestGpsAltitude( );                           // in m
-
-            AppData[0] = AppLedStateOn;
-            AppData[1] = ( pressure >> 8 ) & 0xFF;
-            AppData[2] = pressure & 0xFF;
-            AppData[3] = ( temperature >> 8 ) & 0xFF;
-            AppData[4] = temperature & 0xFF;
-            AppData[5] = ( altitudeBar >> 8 ) & 0xFF;
-            AppData[6] = altitudeBar & 0xFF;
-            AppData[7] = batteryLevel;
-            AppData[8] = ( latitude >> 16 ) & 0xFF;
-            AppData[9] = ( latitude >> 8 ) & 0xFF;
-            AppData[10] = latitude & 0xFF;
-            AppData[11] = ( longitude >> 16 ) & 0xFF;
-            AppData[12] = ( longitude >> 8 ) & 0xFF;
-            AppData[13] = longitude & 0xFF;
-            AppData[14] = ( altitudeGps >> 8 ) & 0xFF;
-            AppData[15] = altitudeGps & 0xFF;
-#elif defined( USE_BAND_915 ) || defined( USE_BAND_915_HYBRID )
-//            int16_t temperature = 0;
-//            int32_t latitude = 0, longitude = 0;
-//            uint16_t altitudeGps = 0xFFFF;
-//            uint8_t batteryLevel = 0;
-
-//            temperature = ( int16_t )( MPL3115ReadTemperature( ) * 100 );       // in �C * 100
-
-//            batteryLevel = BoardGetBatteryLevel( );                             // 1 (very low) to 254 (fully charged)
-//            GpsGetLatestGpsPositionBinary( &latitude, &longitude );
-//            altitudeGps = GpsGetLatestGpsAltitude( );                           // in m
-
-//            AppData[0] = AppLedStateOn;
-//            AppData[1] = temperature;                                           // Signed degrees celsius in half degree units. So,  +/-63 C
-//            AppData[2] = batteryLevel;                                          // Per LoRaWAN spec; 0=Charging; 1...254 = level, 255 = N/A
-//            AppData[3] = ( latitude >> 16 ) & 0xFF;
-//            AppData[4] = ( latitude >> 8 ) & 0xFF;
-//            AppData[5] = latitude & 0xFF;
-//            AppData[6] = ( longitude >> 16 ) & 0xFF;
-//            AppData[7] = ( longitude >> 8 ) & 0xFF;
-//            AppData[8] = longitude & 0xFF;
-//            AppData[9] = ( altitudeGps >> 8 ) & 0xFF;
-//            AppData[10] = altitudeGps & 0xFF;
-
+            // Layout Of Payload: [(counter-uint32), (batteryvoltage-uint32)]
+            uint32_t batvolt = BoardGetBatteryVoltage();
             memset(AppData, '\0', sizeof(AppData));
             memcpy(AppData, &counter, sizeof(counter));
-            AppDataSize = sizeof(counter);
+            memcpy(AppData+sizeof(counter), &batvolt, sizeof(batvolt));
+            AppDataSize = sizeof(counter)+sizeof(batvolt);
             counter++;
-
-#endif
         }
         break;
     case 224:
@@ -384,7 +296,7 @@ static bool SendFrame( void )
  */
 static void OnTxNextPacketTimerEvent( void )
 {
-//    printf("# OnTxNextPacketTimerEvent\n");
+    printf("# OnTxNextPacketTimerEvent\n");
     MibRequestConfirm_t mibReq;
     LoRaMacStatus_t status;
 
@@ -410,6 +322,7 @@ static void OnTxNextPacketTimerEvent( void )
     TimerStart( &Led2Timer );
 
     setLed(Board_GLED, 1); // denote busy - turned off on send confirm
+    Event_post(runtimeEvents, EVENT_STATECHANGE);
 }
 
 /*!
@@ -419,7 +332,6 @@ static void OnLed1TimerEvent( void )
 {
     TimerStop( &Led1Timer );
     // Switch LED 1 OFF
-//    GpioWrite( &Led1, 1 );
     setLed(Board_GLED, 0);
 }
 
@@ -430,18 +342,7 @@ static void OnLed2TimerEvent( void )
 {
     TimerStop( &Led2Timer );
     // Switch LED 2 OFF
-//    GpioWrite( &Led2, 1 );
     setLed(Board_RLED, 0);
-}
-
-/*!
- * \brief Function executed on Led 4 Timeout event
- */
-static void OnLed4TimerEvent( void )
-{
-    TimerStop( &Led4Timer );
-    // Switch LED 4 OFF
-//    GpioWrite( &Led4, 1 );
 }
 
 /*!
@@ -453,7 +354,7 @@ static void OnLed4TimerEvent( void )
 static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
 {
     printf("# McpsConfirm\n");
-    uartputs("# McpsConfirm\n");
+//    uartputs("# McpsConfirm\n");
     if( mcpsConfirm->Status == LORAMAC_EVENT_INFO_STATUS_OK )
     {
         switch( mcpsConfirm->McpsRequest )
@@ -462,7 +363,8 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
             {
                 // Check Datarate
                 // Check TxPower
-                uartputs("# Got McpsConfirm: MCPS_UNCONFIRMED\n");
+//                uartputs("# Got McpsConfirm: MCPS_UNCONFIRMED\n");
+                printf("# Got McpsConfirm: MCPS_UNCONFIRMED\n");
                 break;
             }
             case MCPS_CONFIRMED:
@@ -471,7 +373,8 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
                 // Check TxPower
                 // Check AckReceived
                 // Check NbTrials
-                uartputs("# Got McpsConfirm: MCPS_CONFIRMED\n");
+//                uartputs("# Got McpsConfirm: MCPS_CONFIRMED\n");
+                printf("# Got McpsConfirm: MCPS_CONFIRMED\n");
                 break;
             }
             case MCPS_PROPRIETARY:
@@ -482,13 +385,10 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
                 break;
         }
 
-        // Switch LED 1 ON
-//        GpioWrite( &Led1, 0 );
-//        setLed(Board_GLED, 1);
-//        TimerStart( &Led1Timer );
         setLed(Board_GLED, 0);
     }
     NextTx = true;
+    Event_post(runtimeEvents, EVENT_STATECHANGE);
 }
 
 /*!
@@ -509,12 +409,14 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
     {
         case MCPS_UNCONFIRMED:
         {
-            uartputs("# Got McpsIndication: MCPS_UNCONFIRMED\n");
+//            uartputs("# Got McpsIndication: MCPS_UNCONFIRMED\n");
+            printf("# Got McpsIndication: MCPS_UNCONFIRMED\n");
             break;
         }
         case MCPS_CONFIRMED:
         {
-            uartputs("# Got McpsIndication: MCPS_CONFIRMED\n");
+//            uartputs("# Got McpsIndication: MCPS_CONFIRMED\n");
+            printf("# Got McpsIndication: MCPS_CONFIRMED\n");
             break;
         }
         case MCPS_PROPRIETARY:
@@ -553,7 +455,6 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
             if( mcpsIndication->BufferSize == 1 )
             {
                 AppLedStateOn = mcpsIndication->Buffer[0] & 0x01;
-//                GpioWrite( &Led3, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 0 : 1 );
                 setLed(Board_RLED, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 1 : 0);
             }
             break;
@@ -582,10 +483,6 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                     mibReq.Param.AdrEnable = true;
                     LoRaMacMibSetRequestConfirm( &mibReq );
 
-#if defined( USE_BAND_868 )
-                    LoRaMacTestSetDutyCycleOn( false );
-#endif
-//                    GpsStop( );
                 }
             }
             else
@@ -604,10 +501,6 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                     mibReq.Type = MIB_ADR;
                     mibReq.Param.AdrEnable = LORAWAN_ADR_ON;
                     LoRaMacMibSetRequestConfirm( &mibReq );
-#if defined( USE_BAND_868 )
-                    LoRaMacTestSetDutyCycleOn( LORAWAN_DUTYCYCLE_ON );
-#endif
-//                    GpsStart( );
                     break;
                 case 1: // (iii, iv)
                     AppDataSize = 2;
@@ -651,10 +544,6 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                         mibReq.Type = MIB_ADR;
                         mibReq.Param.AdrEnable = LORAWAN_ADR_ON;
                         LoRaMacMibSetRequestConfirm( &mibReq );
-#if defined( USE_BAND_868 )
-                        LoRaMacTestSetDutyCycleOn( LORAWAN_DUTYCYCLE_ON );
-#endif
-//                        GpsStart( );
 
                         mlmeReq.Type = MLME_JOIN;
 
@@ -693,6 +582,7 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
 //    GpioWrite( &Led2, 0 );
     setLed(Board_RLED, 1);
     TimerStart( &Led2Timer );
+    Event_post(runtimeEvents, EVENT_STATECHANGE);
 }
 
 /*!
@@ -708,11 +598,10 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
     {
         case MLME_JOIN:
         {
-            printf("# MlmeConfirm: Join\n");
             if( mlmeConfirm->Status == LORAMAC_EVENT_INFO_STATUS_OK )
             {
                 // Status is OK, node has joined the network
-//                DeviceState = DEVICE_STATE_SEND;
+                printf("# MlmeConfirm: Join Ok\n");
                 DeviceState = SendOnJoin ? DEVICE_STATE_SEND:DEVICE_STATE_SLEEP;
 
                 setLed(Board_GLED, 0);
@@ -720,6 +609,7 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
             else
             {
                 // Join was not successful. Try to join again
+                printf("# MlmeConfirm: Join Failed\n");
                 DeviceState = DEVICE_STATE_JOIN;
 
                 setLed(Board_RLED, 1);
@@ -747,6 +637,7 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
             break;
     }
     NextTx = true;
+    Event_post(runtimeEvents, EVENT_STATECHANGE);
 }
 
 void maintask(UArg arg0, UArg arg1)
@@ -754,6 +645,9 @@ void maintask(UArg arg0, UArg arg1)
     LoRaMacPrimitives_t LoRaMacPrimitives;
     LoRaMacCallback_t LoRaMacCallbacks;
     MibRequestConfirm_t mibReq;
+
+    Event_construct(&runtimeEventsStruct, NULL);
+    runtimeEvents = Event_handle(&runtimeEventsStruct);
 
     BoardInitMcu( );
     BoardInitPeriph( );
@@ -784,9 +678,6 @@ void maintask(UArg arg0, UArg arg1)
                 TimerInit( &Led2Timer, OnLed2TimerEvent );
                 TimerSetValue( &Led2Timer, LED_ONTIME_MS );
 
-                TimerInit( &Led4Timer, OnLed4TimerEvent );
-                TimerSetValue( &Led4Timer, LED_ONTIME_MS );
-
                 mibReq.Type = MIB_ADR;
                 mibReq.Param.AdrEnable = LORAWAN_ADR_ON;
                 LoRaMacMibSetRequestConfirm( &mibReq );
@@ -795,28 +686,6 @@ void maintask(UArg arg0, UArg arg1)
                 mibReq.Param.EnablePublicNetwork = LORAWAN_PUBLIC_NETWORK;
                 LoRaMacMibSetRequestConfirm( &mibReq );
 
-#if defined( USE_BAND_868 )
-                LoRaMacTestSetDutyCycleOn( LORAWAN_DUTYCYCLE_ON );
-
-#if( USE_SEMTECH_DEFAULT_CHANNEL_LINEUP == 1 )
-                LoRaMacChannelAdd( 3, ( ChannelParams_t )LC4 );
-                LoRaMacChannelAdd( 4, ( ChannelParams_t )LC5 );
-                LoRaMacChannelAdd( 5, ( ChannelParams_t )LC6 );
-                LoRaMacChannelAdd( 6, ( ChannelParams_t )LC7 );
-                LoRaMacChannelAdd( 7, ( ChannelParams_t )LC8 );
-                LoRaMacChannelAdd( 8, ( ChannelParams_t )LC9 );
-                LoRaMacChannelAdd( 9, ( ChannelParams_t )LC10 );
-
-                mibReq.Type = MIB_RX2_DEFAULT_CHANNEL;
-                mibReq.Param.Rx2DefaultChannel = ( Rx2ChannelParams_t ){ 869525000, DR_3 };
-                LoRaMacMibSetRequestConfirm( &mibReq );
-
-                mibReq.Type = MIB_RX2_CHANNEL;
-                mibReq.Param.Rx2Channel = ( Rx2ChannelParams_t ){ 869525000, DR_3 };
-                LoRaMacMibSetRequestConfirm( &mibReq );
-#endif
-
-#endif
                 DeviceState = DEVICE_STATE_JOIN;
                 break;
             }
@@ -907,6 +776,7 @@ void maintask(UArg arg0, UArg arg1)
                 // Schedule next packet transmission
 //                TimerSetValue( &TxNextPacketTimer, TxDutyCycleTime );
 //                TimerStart( &TxNextPacketTimer );
+
                 // wait for button press instead
                 break;
             }
@@ -914,9 +784,7 @@ void maintask(UArg arg0, UArg arg1)
             {
                 printf("# DeviceState: DEVICE_STATE_SLEEP\n");
                 // Wake up through events
-//                TimerLowPowerHandler( );
-                Task_sleep(TIME_MS * 10);
-//                Task_yield();
+                Event_pend(runtimeEvents, Event_Id_NONE, EVENT_STATECHANGE, BIOS_WAIT_FOREVER);
                 break;
             }
             default:
@@ -925,12 +793,6 @@ void maintask(UArg arg0, UArg arg1)
                 break;
             }
         }
-//        if( GpsGetPpsDetectedState( ) == true )
-//        {
-//            // Switch LED 4 ON
-//            GpioWrite( &Led4, 0 );
-//            TimerStart( &Led4Timer );
-//        }
     }
 
 }
@@ -963,7 +825,7 @@ int main(void)
     setuppins();
 
     /* Open UART */
-    setupuart();
+//    setupuart();
 
     /* Start BIOS */
     BIOS_start();
