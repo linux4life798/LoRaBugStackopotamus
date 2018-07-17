@@ -71,7 +71,8 @@ static Event_Handle radioEvents;
 #elif defined( USE_BAND_915 )
 
 //#define RF_FREQUENCY                                915000000 // Hz
-#define RF_FREQUENCY                                902000000 // Hz
+//#define RF_FREQUENCY                                902000000 // Hz
+#define RF_FREQUENCY                                904000000 // Hz
 
 #else
     #error "Please define a frequency band in the compiler options."
